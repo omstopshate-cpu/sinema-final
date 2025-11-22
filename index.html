@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>WatchTogether - AI Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { margin: 0; overflow-x: hidden; background: #050505; color: #e5e5e5; font-family: sans-serif; }
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.6; }
+        .content-wrapper { position: relative; z-index: 1; padding: 20px; text-align: center; }
+        .top-bar { background: rgba(30, 30, 30, 0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; max-width: 900px; margin: 0 auto 20px auto; }
+        #admin-panel { display: none; background: rgba(44, 44, 44, 0.8); backdrop-filter: blur(10px); border-left: 4px solid #46d369; padding: 20px; max-width: 900px; margin: 0 auto 20px auto; text-align: left; border-radius: 12px; }
+        #player-wrapper { position: relative; max-width: 900px; margin: 0 auto; background: #000; aspect-ratio: 16 / 9; display: flex; align-items: center; justify-content: center; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); }
+        #player-container { width: 100%; height: 100%; }
+        #blocker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; cursor: default; }
+        #placeholder-text { position: absolute; color: #888; font-size: 18px; z-index: 5; pointer-events: none; letter-spacing: 1px; text-transform: uppercase; }
+        .custom-controls { background: rgba(31, 31, 31, 0.6); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); max-width: 900px; margin: 10px auto 0 auto; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; border-radius: 12px; }
+        .left-controls, .right-controls { display: flex; align-items: center; gap: 20px; }
+        .ctrl-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+        .ctrl-btn:hover { color: #fff; }
+        input[type=range] { width: 100px; cursor: pointer; accent-color: #46d369; }
+        select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #444; padding: 5px; border-radius: 4px; }
+        /* DÜZELTME: Placeholder rengini daha silik yapalım */
+        input[type=password], input[type=text] { padding: 10px; border-radius: 6px; border: 1px solid #444; background: rgba(0,0,0,0.5); color: white; outline: none; }
+        input::placeholder { color: #888; }
+        .btn-action { padding: 10px 20px; cursor: pointer; border-radius: 6px; border: none; background: linear-gradient(135deg, #46d369 0%, #2ea04b 100%); color: white; font-weight: bold; }
+        .admin-active { color: #46d369; font-weight: bold; }
+        #status-text { cursor: pointer; user-select: none; }
+        :fullscreen #player-wrapper { width: 100vw; height: 100vh; max-width: none; border-radius: 0; }
+        :fullscreen #player { height: 100vh; width: 100vw; }
+        :fullscreen .custom-controls { display: none; }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div class="content-wrapper">
+        <div class="top-bar">
+            <div id="status-text" onclick="toggleLoginPanel()"><i class="fa-solid fa-user-astronaut"></i> İzleyici Modu</div>
+            <div id="login-box" style="display: none;">
+                <input type="password" id="passInput" placeholder="Yönetici Şifresi">
+                <button class="btn-action" onclick="girisYap()">Giriş</button>
+            </div>
+        </div>
+        <div id="admin-panel">
+            <h3 style="margin-top: 0; color: #46d369;"><i class="fa-solid fa-satellite-dish"></i> Kontrol Merkezi</h3>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="videoLink" style="width: 100%;" placeholder="YouTube Linki Yapıştır...">
+                <button class="btn-action" onclick="videoDegistir()">YAYINLA</button>
+            </div>
+        </div>
+        <div id="player-wrapper">
+            <div id="placeholder-text">SİNYAL BEKLENİYOR...</div>
+            <div id="blocker"></div>
+            <div id="player"></div>
+        </div>
+        <div class="custom-controls">
+            <div class="left-controls">
+                <button class="ctrl-btn" onclick="toggleMute()"><i id="mute-icon" class="fa-solid fa-volume-high"></i></button>
+                <input type="range" id="vol-slider" min="0" max="100" value="100" oninput="setVolume(this.value)">
+                <button class="ctrl-btn" onclick="syncNow()" style="color: #46d369;"><i class="fa-solid fa-tower-broadcast"></i> Senkronize Et</button>
+            </div>
+            <div class="right-controls">
+                <select id="quality-select" onchange="setQuality(this.value)"><option value="auto">Kalite: Oto</option></select>
+                <button class="ctrl-btn" onclick="toggleFullScreen()"><i class="fa-solid fa-expand"></i></button>
+            </div>
+        </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Shader Codes
+        const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+        const fragmentShader = `uniform float u_time; uniform vec2 u_resolution; varying vec2 vUv;
+            float random (in vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
+            float noise (in vec2 st) { vec2 i = floor(st); vec2 f = fract(st); float a = random(i); float b = random(i + vec2(1.0, 0.0)); float c = random(i + vec2(0.0, 1.0)); float d = random(i + vec2(1.0, 1.0)); vec2 u = f * f * (3.0 - 2.0 * f); return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y; }
+            void main() { vec2 st = gl_FragCoord.xy / u_resolution.xy; float t = u_time * 0.2; float n = noise(st * 3.0 + t); n += noise(st * 6.0 - t * 1.5) * 0.5;
+            vec3 c1 = vec3(0.02, 0.02, 0.02); vec3 c2 = vec3(0.0, 0.1, 0.05); vec3 c3 = vec3(0.1, 0.4, 0.2);
+            vec3 fc = mix(c1, c2, n); fc = mix(fc, c3, smoothstep(0.6, 0.9, n) * 0.4);
+            if (random(gl_FragCoord.xy) > 0.90) fc += 0.05;
+            fc -= sin(gl_FragCoord.y * 0.5) * 0.02; gl_FragColor = vec4(fc, 1.0); }`;
+        const container = document.getElementById('canvas-container'); const scene = new THREE.Scene(); const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1); const renderer = new THREE.WebGLRenderer({ alpha: true }); renderer.setSize(window.innerWidth, window.innerHeight); container.appendChild(renderer.domElement);
+        const uniforms = { u_time: { value: 0.0 }, u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) } };
+        const material = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vertexShader, fragmentShader: fragmentShader });
+        scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
+        function animate() { requestAnimationFrame(animate); uniforms.u_time.value += 0.05; renderer.render(scene, camera); } animate();
+        window.addEventListener('resize', () => { renderer.setSize(window.innerWidth, window.innerHeight); uniforms.u_resolution.value.x = window.innerWidth; uniforms.u_resolution.value.y = window.innerHeight; });
+
+        // Logic Codes
+        const socket = io(); let player, isAdmin = false, isRemote = false, lastKnownTime = 0;
+        var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; var firstScriptTag = document.getElementsByTagName('script')[0]; firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'controls': 1, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3 }, events: { 'onStateChange': onPlayerStateChange, 'onReady': () => player.setVolume(100) } }); }
+        function setVolume(val) { if(player && player.setVolume) { player.setVolume(val); updateMuteIcon(val); } }
+        function toggleMute() { if(player.isMuted()) { player.unMute(); document.getElementById('vol-slider').value = player.getVolume(); updateMuteIcon(player.getVolume()); } else { player.mute(); document.getElementById('vol-slider').value = 0; updateMuteIcon(0); } }
+        function updateMuteIcon(vol) { const icon = document.getElementById('mute-icon'); if(vol == 0) icon.className = "fa-solid fa-volume-xmark"; else if(vol < 50) icon.className = "fa-solid fa-volume-low"; else icon.className = "fa-solid fa-volume-high"; }
+        function updateQualityLevels() { if(!player || !player.getAvailableQualityLevels) return; let levels = player.getAvailableQualityLevels(); let select = document.getElementById('quality-select'); if(select.options.length > 1 && levels.length > 0) return; select.innerHTML = '<option value="auto">Kalite: Oto</option>'; levels.forEach(lvl => { let opt = document.createElement('option'); opt.value = lvl; opt.innerText = lvl; select.appendChild(opt); }); }
+        function setQuality(val) { player.setPlaybackQuality(val); }
+        function syncNow() { if(lastKnownTime > 0) player.seekTo(lastKnownTime); }
+        function toggleFullScreen() { var elem = document.getElementById("player-wrapper"); if (!document.fullscreenElement) elem.requestFullscreen().catch(err => {}); else document.exitFullscreen(); }
+        function toggleLoginPanel() { if (isAdmin) return; const box = document.getElementById('login-box'); box.style.display = (box.style.display === "none") ? "block" : "none"; }
+        function girisYap() { socket.emit('admin_girisi', document.getElementById('passInput').value); }
+        socket.on('admin_basarili', (sonuc) => { if (sonuc) { isAdmin = true; const st = document.getElementById('status-text'); st.innerHTML = '<i class="fa-solid fa-user-secret"></i> SİSTEM YÖNETİCİSİ'; st.className = "admin-active"; st.style.cursor = "default"; document.getElementById('login-box').style.display = "none"; document.getElementById('admin-panel').style.display = "block"; document.getElementById('blocker').style.display = "none"; } else { alert("Yanlış Şifre!"); } });
+        function videoDegistir() { let url = document.getElementById('videoLink').value; let vId = (url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/)||[])[7]; if (vId && vId.length === 11) { document.getElementById('placeholder-text').style.display = 'none'; player.loadVideoById(vId); socket.emit('video_action', { type: 'change', videoId: vId }); } }
+        function onPlayerStateChange(event) { if (event.data === YT.PlayerState.PLAYING) { document.getElementById('placeholder-text').style.display = 'none'; updateQualityLevels(); } if (isRemote || !isAdmin) return; if (event.data === YT.PlayerState.PLAYING) socket.emit('video_action', { type: 'play', time: player.getCurrentTime() }); else if (event.data === YT.PlayerState.PAUSED) socket.emit('video_action', { type: 'pause', time: player.getCurrentTime() }); }
+        socket.on('sync_video', (data) => { isRemote = true; document.getElementById('placeholder-text').style.display = 'none'; if (data.type === 'play') { lastKnownTime = data.time; let diff = Math.abs(player.getCurrentTime() - data.time); if (diff > 1) player.seekTo(data.time); player.playVideo(); } else if (data.type === 'pause') { player.seekTo(data.time); player.pauseVideo(); } else if (data.type === 'change') { player.loadVideoById(data.videoId); } setTimeout(() => { isRemote = false; }, 500); });
+    </script>
+</body>
+</html>
