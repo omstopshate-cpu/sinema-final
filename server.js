@@ -14,13 +14,10 @@ const io = new Server(server, {
     cors: { origin: "*", methods: ["GET", "POST"], credentials: true }
 });
 
-// --- KRİTİK GÜVENLİK GÜNCELLEMESİ ---
-// Şifreyi koddan değil, sunucu ayarlarından (Environment Variable) alıyoruz.
-// Eğer sunucuda ayar yoksa yedek olarak "1680" kullanır (Test için).
+// Şifre Render'dan gelir yoksa 1680
 const ADMIN_SIFRESI = process.env.ADMIN_KEY || "1680"; 
-// -------------------------------------
 
-// GÜVENLİK LİMİTLERİ
+// LİMİTLER
 const MAX_LOGIN_ATTEMPTS = 3;
 const LOCK_TIME = 5 * 60 * 1000; 
 const RATE_LIMIT_WINDOW = 1000; 
@@ -32,10 +29,10 @@ const admins = new Set();
 const users = {}; 
 const bannedIPs = new Set(); 
 
-// --- ODA HAFIZASI ---
+// ODA HAFIZASI
 let roomState = { videoId: null, isPlaying: false, timestamp: 0, lastUpdate: 0 };
-const chatHistory = []; // Son mesajları tutmak için hafıza
-const MAX_CHAT_HISTORY = 50; // En son 50 mesajı hatırla
+const chatHistory = []; 
+const MAX_CHAT_HISTORY = 50; 
 
 app.use(express.static(__dirname));
 
@@ -56,13 +53,32 @@ function isRateLimited(socketId) {
 }
 
 io.on('connection', (socket) => {
-    const clientIP = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+    // Gerçek IP adresini al
+    const clientIP = socket.handshake.headers['x-forwarded-for'] ? socket.handshake.headers['x-forwarded-for'].split(',')[0] : socket.handshake.address;
 
+    // 1. BAN KONTROLÜ
     if (bannedIPs.has(clientIP)) { socket.disconnect(true); return; }
+
+    // --- 2. YENİ ÖZELLİK: AYNI IP KONTROLÜ ---
+    let ipAlreadyConnected = false;
+    for (let id in users) {
+        if (users[id].ip === clientIP) {
+            ipAlreadyConnected = true;
+            break;
+        }
+    }
+
+    if (ipAlreadyConnected) {
+        // Eğer IP zaten listedeyse, yeni bağlantıyı reddet
+        socket.emit('force_disconnect', '⚠️ Aynı cihazdan sadece tek sekme açabilirsiniz! Diğer sekmeyi kapatın.');
+        socket.disconnect(true);
+        return; // İşlemi durdur
+    }
+    // -----------------------------------------
 
     users[socket.id] = { name: "Misafir", muted: false, ip: clientIP };
 
-    // 1. ODA DURUMUNU GÖNDER (VİDEO)
+    // Oda Durumunu Gönder
     if (roomState.videoId) {
         let currentSeconds = roomState.timestamp;
         if (roomState.isPlaying) {
@@ -76,7 +92,7 @@ io.on('connection', (socket) => {
         });
     }
 
-    // 2. CHAT GEÇMİŞİNİ GÖNDER (YENİ EKLENDİ)
+    // Chat Geçmişi
     socket.emit('chat_history', chatHistory);
 
     io.emit('update_user_list', users);
@@ -89,11 +105,9 @@ io.on('connection', (socket) => {
             users[socket.id].name = safeName;
             io.emit('update_user_list', users);
             
-            // Sistem mesajını da history'e ekle
             const sysMsg = { user: 'SİSTEM', text: `🟢 ${safeName} katıldı.`, type: 'system' };
             chatHistory.push(sysMsg);
             if (chatHistory.length > MAX_CHAT_HISTORY) chatHistory.shift();
-            
             io.emit('chat_message', sysMsg);
         }
     });
@@ -105,11 +119,8 @@ io.on('connection', (socket) => {
             let safeMsg = sanitize(msg);
             if (safeMsg.trim().length > 0) {
                 const messageData = { user: user.name, text: safeMsg, type: 'user' };
-                
-                // Hafızaya kaydet
                 chatHistory.push(messageData);
                 if (chatHistory.length > MAX_CHAT_HISTORY) chatHistory.shift();
-
                 io.emit('chat_message', messageData);
             }
         }
@@ -130,13 +141,11 @@ io.on('connection', (socket) => {
             socket.emit('admin_basarili', true);
             socket.emit('chat_message', { user: 'SİSTEM', text: `🛡️ Yönetici bağlandı.`, type: 'system' });
             
-            // Admin girince sync tazele
             socket.emit('sync_video', {
                 type: roomState.isPlaying ? 'play' : 'pause',
                 videoId: roomState.videoId,
                 time: roomState.timestamp
             });
-
         } else {
             attemptData.count++;
             if (attemptData.count >= MAX_LOGIN_ATTEMPTS) {
@@ -170,20 +179,12 @@ io.on('connection', (socket) => {
     socket.on('video_action', (data) => {
         if (admins.has(socket.id)) {
             if (typeof data !== 'object') return;
-
             if (data.type === 'play') {
-                roomState.isPlaying = true;
-                roomState.timestamp = data.time;
-                roomState.lastUpdate = Date.now();
+                roomState.isPlaying = true; roomState.timestamp = data.time; roomState.lastUpdate = Date.now();
             } else if (data.type === 'pause') {
-                roomState.isPlaying = false;
-                roomState.timestamp = data.time;
-                roomState.lastUpdate = Date.now();
+                roomState.isPlaying = false; roomState.timestamp = data.time; roomState.lastUpdate = Date.now();
             } else if (data.type === 'change') {
-                roomState.videoId = data.videoId;
-                roomState.timestamp = 0;
-                roomState.isPlaying = true; 
-                roomState.lastUpdate = Date.now();
+                roomState.videoId = data.videoId; roomState.timestamp = 0; roomState.isPlaying = true; roomState.lastUpdate = Date.now();
                 const msg = { user: 'SİSTEM', text: `🎬 Video değiştirildi.`, type: 'info' };
                 chatHistory.push(msg);
                 if (chatHistory.length > MAX_CHAT_HISTORY) chatHistory.shift();
