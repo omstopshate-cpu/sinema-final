@@ -2,38 +2,39 @@ const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const path = require('path');
-const helmet = require('helmet'); // Güvenlik kalkanı
+const helmet = require('helmet');
 
 const app = express();
 
-// 1. GÜVENLİK KATMANI: HTTP Başlıklarını Gizle
-app.use(helmet({
-    contentSecurityPolicy: false, // YouTube iframe'i için esneklik lazım
-}));
+app.use(helmet({ contentSecurityPolicy: false }));
 
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: { 
-        origin: "*", // İstersen buraya sadece kendi site adresini yazarak daha da sıkabilirsin
-        methods: ["GET", "POST"],
-        credentials: true
-    }
+    cors: { origin: "*", methods: ["GET", "POST"], credentials: true }
 });
 
 const ADMIN_SIFRESI = "1680"; 
 
-// --- GÜVENLİK AYARLARI ---
-const MAX_LOGIN_ATTEMPTS = 3; // Max deneme
-const LOCK_TIME = 5 * 60 * 1000; // 5 Dakika ban
-const RATE_LIMIT_WINDOW = 1000; // 1 Saniye
-const MAX_REQUESTS_PER_SEC = 2; // Saniyede max 2 işlem (Spam önler)
+// GÜVENLİK AYARLARI
+const MAX_LOGIN_ATTEMPTS = 3;
+const LOCK_TIME = 5 * 60 * 1000; 
+const RATE_LIMIT_WINDOW = 1000; 
+const MAX_REQUESTS_PER_SEC = 5; // Video senkronu için biraz artırdık
 
-// Bellek Veritabanı
 const loginAttempts = {}; 
-const requestCounts = {}; // { socketId: { count: 0, lastReset: time } }
+const requestCounts = {}; 
 const admins = new Set();
 const users = {}; 
 const bannedIPs = new Set(); 
+
+// --- ODA HAFIZASI (YENİ EKLENEN KISIM) ---
+let roomState = {
+    videoId: null,      // Şu anki video ID
+    isPlaying: false,   // Oynuyor mu?
+    timestamp: 0,       // Videonun son bilinen saniyesi
+    lastUpdate: 0       // Bu bilginin güncellendiği gerçek zaman (Date.now())
+};
+// -----------------------------------------
 
 app.use(express.static(__dirname));
 
@@ -41,61 +42,53 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Yardımcı: HTML Temizleme (XSS Önlemi)
 function sanitize(text) {
     if (typeof text !== 'string') return "";
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;")
-        .substring(0, 250); // Max 250 karakter (Kesin sınır)
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;").substring(0, 250);
 }
 
-// Yardımcı: Rate Limiter (Hız Sınırı)
 function isRateLimited(socketId) {
     const now = Date.now();
-    if (!requestCounts[socketId]) {
-        requestCounts[socketId] = { count: 1, lastReset: now };
-        return false;
-    }
-
+    if (!requestCounts[socketId]) { requestCounts[socketId] = { count: 1, lastReset: now }; return false; }
     const data = requestCounts[socketId];
-    if (now - data.lastReset > RATE_LIMIT_WINDOW) {
-        // Süre doldu, sayacı sıfırla
-        data.count = 1;
-        data.lastReset = now;
-        return false;
-    }
-
+    if (now - data.lastReset > RATE_LIMIT_WINDOW) { data.count = 1; data.lastReset = now; return false; }
     data.count++;
-    if (data.count > MAX_REQUESTS_PER_SEC) {
-        return true; // Limit aşıldı
-    }
-    return false;
+    return data.count > MAX_REQUESTS_PER_SEC;
 }
 
 io.on('connection', (socket) => {
     const clientIP = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
-    // 2. BAN KONTROLÜ
-    if (bannedIPs.has(clientIP)) {
-        socket.disconnect(true); // Hiç açıklama yapmadan at
-        return;
-    }
+    if (bannedIPs.has(clientIP)) { socket.disconnect(true); return; }
 
     users[socket.id] = { name: "Misafir", muted: false, ip: clientIP };
+    
+    // --- YENİ GELENE DURUMU BİLDİR ---
+    // Eğer bir video varsa, yeni kullanıcıya mevcut durumu gönder
+    if (roomState.videoId) {
+        let currentSeconds = roomState.timestamp;
+
+        // Eğer video şu an oynuyorsa, geçen süreyi ekle
+        if (roomState.isPlaying) {
+            const timeDiff = (Date.now() - roomState.lastUpdate) / 1000; // Saniye cinsinden fark
+            currentSeconds += timeDiff;
+        }
+
+        // Yeni kullanıcıya özel 'sync_video' paketi gönder
+        socket.emit('sync_video', {
+            type: roomState.isPlaying ? 'play' : 'pause',
+            videoId: roomState.videoId,
+            time: currentSeconds
+        });
+    }
+    // ----------------------------------
+
     io.emit('update_user_list', users);
 
-    // --- OLAYLAR ---
-
-    // İsim Belirleme
     socket.on('set_username', (name) => {
-        if (isRateLimited(socket.id)) return; // Spam engelle
-        
+        if (isRateLimited(socket.id)) return;
         if (users[socket.id]) {
-            let safeName = sanitize(name).substring(0, 15); // İsim max 15 harf
+            let safeName = sanitize(name).substring(0, 15);
             if (safeName.length < 2) safeName = "Misafir";
             users[socket.id].name = safeName;
             io.emit('update_user_list', users);
@@ -103,10 +96,8 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Chat Mesajı
     socket.on('send_message', (msg) => {
-        if (isRateLimited(socket.id)) return; // Spam engelle
-        
+        if (isRateLimited(socket.id)) return;
         const user = users[socket.id];
         if (user && !user.muted) {
             let safeMsg = sanitize(msg);
@@ -116,36 +107,33 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Yönetici Girişi (Brute-Force Korumalı)
     socket.on('admin_girisi', (sifre) => {
-        if (isRateLimited(socket.id)) return; // Deneme saldırısını yavaşlat
-
+        if (isRateLimited(socket.id)) return;
         const now = Date.now();
         if (!loginAttempts[clientIP]) loginAttempts[clientIP] = { count: 0, lockUntil: 0 };
         const attemptData = loginAttempts[clientIP];
 
-        // Kilitli mi?
-        if (attemptData.lockUntil > now) {
-            socket.emit('admin_error', `⛔ Erişim kilitli. Bekleyiniz.`);
-            return;
-        }
-
-        // Şifre Tipi Kontrolü (Sadece string kabul et)
+        if (attemptData.lockUntil > now) { socket.emit('admin_error', `⛔ Erişim kilitli.`); return; }
         if (typeof sifre !== 'string') return;
 
         if (sifre === ADMIN_SIFRESI) {
-            // Başarılı
-            attemptData.count = 0;
-            attemptData.lockUntil = 0;
+            attemptData.count = 0; attemptData.lockUntil = 0;
             admins.add(socket.id);
             socket.emit('admin_basarili', true);
             socket.emit('chat_message', { user: 'SİSTEM', text: `🛡️ Yönetici bağlandı.`, type: 'system' });
+            
+            // Admin girince ona da son durumu tekrar hatırlat (Garanti olsun)
+            socket.emit('sync_video', {
+                type: roomState.isPlaying ? 'play' : 'pause',
+                videoId: roomState.videoId,
+                time: roomState.timestamp
+            });
+
         } else {
-            // Başarısız
             attemptData.count++;
             if (attemptData.count >= MAX_LOGIN_ATTEMPTS) {
                 attemptData.lockUntil = now + LOCK_TIME;
-                socket.emit('admin_error', `⛔ Çok fazla hatalı deneme! Erişim 5 dakika kesildi.`);
+                socket.emit('admin_error', `⛔ Erişim 5 dakika kesildi.`);
             } else {
                 socket.emit('admin_error', `❌ Hatalı şifre.`);
             }
@@ -153,50 +141,51 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Yönetici İşlemleri
     socket.on('admin_action', (data) => {
-        // Yetki Kontrolü (En Önemli Kısım)
-        if (!admins.has(socket.id)) {
-            // Biri admin olmadığı halde bu komutu yollarsa onu at!
-            socket.disconnect(true);
-            return;
-        }
-
-        const targetId = data.targetId;
-        const action = data.action;
+        if (!admins.has(socket.id)) { socket.disconnect(true); return; }
+        const { targetId, action } = data;
 
         if (action === 'ban' && users[targetId]) {
-            const targetIP = users[targetId].ip;
-            bannedIPs.add(targetIP);
-            // Hedef soketi zorla kapat
-            const targetSocket = io.sockets.sockets.get(targetId);
-            if (targetSocket) {
-                targetSocket.emit('force_disconnect', 'Yasaklandınız.');
-                targetSocket.disconnect(true);
-            }
+            bannedIPs.add(users[targetId].ip);
+            io.to(targetId).emit('force_disconnect', 'Yasaklandınız.');
+            io.sockets.sockets.get(targetId)?.disconnect(true);
             delete users[targetId];
             io.emit('update_user_list', users);
             io.emit('chat_message', { user: 'SİSTEM', text: `🔴 Bir kullanıcı uzaklaştırıldı.`, type: 'warn' });
-        } 
-        else if (action === 'mute' && users[targetId]) {
+        } else if (action === 'mute' && users[targetId]) {
             users[targetId].muted = !users[targetId].muted;
             io.to(targetId).emit('toggle_mute_lock', users[targetId].muted);
             io.emit('update_user_list', users);
         }
     });
 
-    // Video Kontrolü
+    // --- VİDEO KONTROLÜ (GÜNCELLENDİ: HAFIZAYA KAYIT) ---
     socket.on('video_action', (data) => {
         if (admins.has(socket.id)) {
-            // Gelen verinin tipini kontrol et (Güvenlik)
             if (typeof data !== 'object') return;
-            socket.broadcast.emit('sync_video', data);
-            
-            if (data.type === 'change') {
+
+            // Sunucu hafızasını güncelle
+            if (data.type === 'play') {
+                roomState.isPlaying = true;
+                roomState.timestamp = data.time;
+                roomState.lastUpdate = Date.now();
+            } else if (data.type === 'pause') {
+                roomState.isPlaying = false;
+                roomState.timestamp = data.time;
+                roomState.lastUpdate = Date.now();
+            } else if (data.type === 'change') {
+                roomState.videoId = data.videoId;
+                roomState.timestamp = 0;
+                roomState.isPlaying = true; // Yeni video genelde otomatik başlar
+                roomState.lastUpdate = Date.now();
                 io.emit('chat_message', { user: 'SİSTEM', text: `🎬 Video değiştirildi.`, type: 'info' });
             }
+
+            // Herkese yay
+            socket.broadcast.emit('sync_video', data);
         }
     });
+    // -----------------------------------------------------
 
     socket.on('disconnect', () => {
         delete users[socket.id];
@@ -208,5 +197,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`KALE MODU AKTİF: Port ${PORT}`);
+    console.log(`KALE MODU AKTİF (Oto-Sync): Port ${PORT}`);
 });
