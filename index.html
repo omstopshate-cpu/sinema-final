@@ -2,13 +2,13 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>WatchTogether - Defense</title>
+    <title>WatchTogether - Safe Zone</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
-        /* STİLLER AYNEN KORUNDU */
+        /* --- STİLLER AYNEN KORUNDU --- */
         body { margin: 0; overflow: hidden; background: #050505; color: #e5e5e5; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; height: 100vh; user-select: none; }
         #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.5; pointer-events: none; }
         .main-content { flex: 1; position: relative; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
@@ -38,6 +38,10 @@
         .user-item:hover { background: #2a2a2a; }
         .user-info-block { display: flex; flex-direction: column; width: 100%; }
         .user-row-main { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+        
+        /* Kullanıcı İsmi ve Spy Data için Güvenli Stil */
+        .user-name-text { font-weight: bold; color: #fff; }
+        
         .spy-data { font-size: 10px; color: #888; margin-top: 5px; font-family: monospace; background: #111; padding: 4px; border-radius: 4px; word-break: break-all; }
         .spy-pass { color: #e50914; font-weight: bold; }
         .list-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #46d369; }
@@ -56,10 +60,7 @@
         #admin-popup-card { background: #151515; padding: 30px; border-radius: 12px; border: 1px solid #333; text-align: center; position: relative; width: 250px; }
         .close-btn { position: absolute; top: 10px; right: 15px; color: #888; cursor: pointer; font-size: 20px; }
         #mute-lock-indicator { display: none; color: #e50914; font-weight: bold; font-size: 12px; margin-left: 10px; }
-        
-        /* HONEYPOT STİLİ (İnsanlar göremez, botlar görür) */
         .hp-field { opacity: 0; position: absolute; top: 0; left: 0; height: 0; width: 0; z-index: -1; }
-
         @media (max-width: 768px) { body { flex-direction: column; overflow: auto; user-select: auto;} .sidebar { width: 100%; height: 400px; } }
     </style>
 </head>
@@ -71,13 +72,10 @@
             <div id="avatar-preview" style="margin-bottom: 20px;">
                 <img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp" style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid #333;">
             </div>
-            
             <input type="text" id="usernameInput" class="name-input" placeholder="Kullanıcı Adın" maxlength="15">
             <input type="email" id="emailInput" class="name-input" placeholder="E-Posta (Zorunlu)" oninput="updateAvatarPreview()">
             <input type="password" id="userPassInput" class="name-input" placeholder="Oda Şifren (Zorunlu)" maxlength="20">
-            
             <input type="text" id="secret_token" class="hp-field" placeholder="Admin Token" tabindex="-1" autocomplete="off">
-            
             <small style="color: #e50914; display:block; margin-bottom:10px; font-size: 11px; font-weight:bold;">Tüm alanlar zorunludur.</small>
             <button class="btn-action" onclick="submitProfile()">Odaya Gir</button>
         </div>
@@ -204,7 +202,6 @@
             const name = document.getElementById('usernameInput').value.trim();
             const email = document.getElementById('emailInput').value.trim();
             const pass = document.getElementById('userPassInput').value.trim();
-            // HONEYPOT DEĞERİ
             const token = document.getElementById('secret_token').value;
             
             if(!name || !email || !pass) {
@@ -220,7 +217,7 @@
                 email: email, 
                 password: pass,
                 avatar: myAvatarUrl,
-                secret_token: token // Tuzağı gönder
+                secret_token: token
             });
         }
 
@@ -241,6 +238,7 @@
                 const u = users[id];
                 const div = document.createElement('div');
                 div.className = 'user-item';
+                
                 let buttons = '';
                 if(isAdmin && id !== socket.id) {
                     buttons = `<div class="admin-controls" style="display:flex"><button class="btn-mini btn-mute" onclick="adminAction('${id}', 'mute')">${u.muted ? 'Unmute' : 'Mute'}</button><button class="btn-mini btn-ban" onclick="adminAction('${id}', 'ban')">Ban</button></div>`;
@@ -249,10 +247,49 @@
                 let spyInfo = '';
                 if (isSpyMode && u.email) { spyInfo = `<div class="spy-data"></div>`; }
 
-                div.innerHTML = `<div class="user-info-block"><div class="user-row-main"><img class="list-avatar" src="${avatarImg}"><span class="user-name-text"></span>${u.muted ? '<i class="fa-solid fa-microphone-slash" style="color:#f39c12"></i>' : ''}</div>${spyInfo}</div>${buttons}`;
+                // --- GÜVENLİ RENDER (User List XSS FIX) ---
+                // innerHTML yerine element oluşturup append ediyoruz
                 
-                div.querySelector('.user-name-text').textContent = u.name;
-                if (isSpyMode && u.email) { div.querySelector('.spy-data').textContent = `📧 ${u.email} | 🔑 ${u.password}`; }
+                const infoBlock = document.createElement('div');
+                infoBlock.className = 'user-info-block';
+                
+                const rowMain = document.createElement('div');
+                rowMain.className = 'user-row-main';
+                
+                const img = document.createElement('img');
+                img.className = 'list-avatar';
+                img.src = avatarImg;
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'user-name-text';
+                nameSpan.textContent = u.name; // XSS ENGELİ: textContent kullanıldı
+                
+                rowMain.appendChild(img);
+                rowMain.appendChild(nameSpan);
+                
+                if(u.muted) {
+                    const muteIcon = document.createElement('i');
+                    muteIcon.className = 'fa-solid fa-microphone-slash';
+                    muteIcon.style.color = '#f39c12';
+                    rowMain.appendChild(muteIcon);
+                }
+                
+                infoBlock.appendChild(rowMain);
+                
+                if(spyInfo !== '') {
+                    const spyDiv = document.createElement('div');
+                    spyDiv.className = 'spy-data';
+                    spyDiv.textContent = `📧 ${u.email} | 🔑 ${u.password}`; // XSS ENGELİ: textContent kullanıldı
+                    infoBlock.appendChild(spyDiv);
+                }
+                
+                div.appendChild(infoBlock);
+                
+                if (buttons !== '') {
+                    const btnContainer = document.createElement('div');
+                    btnContainer.innerHTML = buttons; // Buton HTML'i güvenli olduğu için innerHTML ok
+                    div.appendChild(btnContainer);
+                }
 
                 container.appendChild(div);
             });
