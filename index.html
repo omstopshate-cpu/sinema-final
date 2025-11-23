@@ -23,7 +23,6 @@
             --text-muted: #94a3b8;
             --radius-lg: 24px;
             --radius-md: 16px;
-            --radius-sm: 12px;
         }
 
         * { box-sizing: border-box; outline: none; -webkit-font-smoothing: antialiased; }
@@ -34,224 +33,124 @@
             display: flex; height: 100vh; user-select: none;
         }
 
-        /* --- WEBGL BACKGROUND --- */
-        #canvas-container {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: -1; pointer-events: none;
-        }
-        
-        /* --- FILM GRAIN (DITHER) OVERLAY --- */
+        /* --- ARKA PLAN EFEKTLERİ --- */
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .noise-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 0; pointer-events: none; opacity: 0.07;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E");
         }
 
-        /* --- ORTAK CAM STİLİ (GLASSMORPHISM) --- */
+        /* --- ORTAK CAM STİLİ --- */
         .glass-panel {
             background: var(--glass-surface);
-            backdrop-filter: blur(40px);
-            -webkit-backdrop-filter: blur(40px);
+            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
             border: 1px solid var(--glass-border);
             box-shadow: 0 20px 50px rgba(0,0,0,0.3);
         }
 
-        /* --- GİRİŞ EKRANI (LOGIN) --- */
+        /* --- GİRİŞ EKRANI --- */
         .overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(5, 5, 8, 0.6); /* Hafif karartma */
-            backdrop-filter: blur(10px);
+            background: rgba(5, 5, 8, 0.6); backdrop-filter: blur(10px);
             z-index: 9999; display: flex; justify-content: center; align-items: center;
         }
         .hidden { display: none !important; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
 
-        .login-card {
-            width: 400px; padding: 40px; border-radius: var(--radius-lg);
-            text-align: center; transform: translateY(20px); opacity: 0; /* GSAP ile gelecek */
-        }
-
-        .brand-logo {
-            font-size: 24px; font-weight: 700; margin-bottom: 10px;
-            background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            letter-spacing: -0.5px;
-        }
-        
-        .avatar-wrapper {
-            width: 80px; height: 80px; margin: 20px auto; padding: 3px;
-            background: linear-gradient(135deg, var(--primary-accent), var(--secondary-accent));
-            border-radius: 50%;
-        }
-        .avatar-wrapper img {
-            width: 100%; height: 100%; border-radius: 50%;
-            object-fit: cover; border: 3px solid var(--bg-color);
-        }
-
-        .input-field {
-            width: 100%; padding: 16px; margin-bottom: 12px;
-            background: rgba(255,255,255,0.05); border: 1px solid transparent;
-            border-radius: var(--radius-md); color: #fff; font-size: 14px; font-family: inherit;
-            transition: all 0.3s ease;
-        }
-        .input-field:focus {
-            background: rgba(255,255,255,0.1);
-            border-color: rgba(255,255,255,0.2);
-            box-shadow: 0 0 20px rgba(168, 85, 247, 0.1);
-        }
-        .input-field::placeholder { color: rgba(255,255,255,0.3); }
-
-        .btn-primary {
-            width: 100%; padding: 16px; margin-top: 10px;
-            background: #fff; color: #000;
-            border: none; border-radius: var(--radius-md);
-            font-weight: 700; font-size: 14px; cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .btn-primary:hover {
-            transform: scale(1.02);
-            box-shadow: 0 0 30px rgba(255,255,255,0.2);
-        }
+        .login-card { width: 400px; padding: 40px; border-radius: var(--radius-lg); text-align: center; }
+        .brand-logo { font-size: 24px; font-weight: 700; margin-bottom: 10px; background: linear-gradient(135deg, #fff 0%, #94a3b8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .avatar-wrapper { width: 80px; height: 80px; margin: 20px auto; padding: 3px; background: linear-gradient(135deg, var(--primary-accent), var(--secondary-accent)); border-radius: 50%; }
+        .avatar-wrapper img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid var(--bg-color); }
+        .input-field { width: 100%; padding: 16px; margin-bottom: 12px; background: rgba(255,255,255,0.05); border: 1px solid transparent; border-radius: var(--radius-md); color: #fff; font-size: 14px; transition: all 0.3s ease; }
+        .input-field:focus { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+        .btn-primary { width: 100%; padding: 16px; margin-top: 10px; background: #fff; color: #000; border: none; border-radius: var(--radius-md); font-weight: 700; cursor: pointer; transition: 0.2s ease; }
+        .btn-primary:hover { transform: scale(1.02); box-shadow: 0 0 30px rgba(255,255,255,0.2); }
 
         /* --- ANA ARAYÜZ --- */
-        .app-container {
-            display: flex; width: 100%; height: 100%; z-index: 1; opacity: 0; /* GSAP */
-            padding: 20px; gap: 20px;
-        }
+        .app-container { display: flex; width: 100%; height: 100%; z-index: 1; padding: 20px; gap: 20px; opacity: 0; } /* GSAP ile açılacak */
+        .main-stage { flex: 1; display: flex; flex-direction: column; gap: 20px; border-radius: var(--radius-lg); overflow: hidden; }
 
-        /* SOL: VİDEO ALANI */
-        .main-stage {
-            flex: 1; display: flex; flex-direction: column; gap: 20px;
-            border-radius: var(--radius-lg); overflow: hidden;
-        }
-
-        /* Video Player Kapsayıcısı */
-        .cinema-display {
-            flex: 1; position: relative; border-radius: var(--radius-lg);
-            overflow: hidden; box-shadow: 0 40px 80px rgba(0,0,0,0.5);
-            background: #000; border: 1px solid var(--glass-border);
-        }
-        
+        .cinema-display { flex: 1; position: relative; border-radius: var(--radius-lg); overflow: hidden; background: #000; border: 1px solid var(--glass-border); }
         #player-wrapper { width: 100%; height: 100%; position: absolute; }
         #player { width: 100%; height: 100%; }
-        #blocker { position: absolute; width: 100%; height: 100%; z-index: 10; }
-        
-        /* Boş Ekran Yazısı */
-        #placeholder-text {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: rgba(255,255,255,0.2); font-weight: 300; letter-spacing: 1px;
-        }
+        #blocker { position: absolute; width: 100%; height: 100%; z-index: 10; } /* İzleyici tıklamasını engeller */
+        #placeholder-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.2); font-weight: 300; letter-spacing: 1px; }
 
-        /* Üst Bar (Navigation) */
-        .nav-bar {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0 10px;
-        }
-        .user-pill {
-            display: flex; align-items: center; gap: 10px;
-            padding: 8px 16px; border-radius: 50px;
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05);
-        }
+        /* NAV BAR */
+        .nav-bar { display: flex; justify-content: space-between; align-items: center; padding: 0 10px; }
+        .user-pill { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-radius: 50px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); }
         .user-pill img { width: 24px; height: 24px; border-radius: 50%; }
-        
-        .admin-trigger {
-            width: 40px; height: 40px; border-radius: 50%; border: none;
-            background: transparent; color: rgba(255,255,255,0.3);
-            cursor: pointer; transition: 0.3s;
-        }
+        .admin-trigger { width: 40px; height: 40px; border-radius: 50%; border: none; background: transparent; color: rgba(255,255,255,0.3); cursor: pointer; transition: 0.3s; }
         .admin-trigger:hover { color: #fff; background: rgba(255,255,255,0.05); }
 
-        /* Alt Kontroller (Dock) */
+        /* --- YENİ KONTROL PANELİ (DOCK) --- */
         .control-dock {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 15px 30px; border-radius: 50px;
+            display: flex; flex-direction: column; gap: 10px;
+            padding: 20px 30px; border-radius: 24px;
             margin-bottom: 10px;
         }
+
+        .dock-top { display: flex; align-items: center; gap: 20px; justify-content: space-between; width: 100%; }
         
-        .slider-group { display: flex; align-items: center; gap: 15px; color: #fff; }
-        input[type=range] {
-            -webkit-appearance: none; background: transparent; width: 100px; cursor: pointer;
+        /* İlerleme Çubuğu (Seek Bar) */
+        .progress-container { width: 100%; display: flex; align-items: center; gap: 15px; }
+        .time-display { font-size: 12px; font-feature-settings: "tnum"; color: var(--text-muted); width: 45px; text-align: center; }
+        
+        input[type=range].seek-slider {
+            -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer;
         }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px;
+        input[type=range].seek-slider::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; transition: 0.2s;
         }
-        input[type=range]::-webkit-slider-thumb {
+        input[type=range].seek-slider:hover::-webkit-slider-runnable-track { background: rgba(255,255,255,0.2); }
+        input[type=range].seek-slider::-webkit-slider-thumb {
             -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%;
-            background: #fff; margin-top: -4px; box-shadow: 0 0 10px rgba(255,255,255,0.5);
+            background: var(--primary-accent); margin-top: -4px; box-shadow: 0 0 10px var(--primary-accent);
+            transition: 0.2s; transform: scale(0); /* Hover'da büyüsün */
         }
+        input[type=range].seek-slider:hover::-webkit-slider-thumb { transform: scale(1.2); }
 
-        .action-btn {
-            background: transparent; border: 1px solid rgba(255,255,255,0.1);
-            color: #fff; padding: 8px 16px; border-radius: 12px;
-            font-size: 12px; cursor: pointer; transition: 0.3s;
-            display: flex; align-items: center; gap: 6px;
-        }
-        .action-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); }
-
-        /* SAĞ: SIDEBAR (Sohbet & Liste) */
-        .sidebar {
-            width: 360px; display: flex; flex-direction: column;
-            border-radius: var(--radius-lg); overflow: hidden;
-        }
+        .dock-bottom { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 5px;}
         
-        .tabs { display: flex; padding: 5px; gap: 5px; border-bottom: 1px solid var(--glass-border); }
-        .tab-btn {
-            flex: 1; padding: 12px; border: none; background: transparent;
-            color: var(--text-muted); font-weight: 500; font-size: 13px;
-            cursor: pointer; border-radius: var(--radius-sm); transition: 0.3s;
-        }
-        .tab-btn.active { background: rgba(255,255,255,0.05); color: #fff; }
-
-        .content-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .left-controls, .right-controls { display: flex; align-items: center; gap: 15px; }
         
-        /* Chat Balonları */
-        .msg { display: flex; gap: 10px; align-items: flex-end; animation: fadeIn 0.3s ease; }
-        .msg-img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
-        .msg-bubble {
-            background: rgba(255,255,255,0.05); padding: 10px 14px;
-            border-radius: 18px; border-bottom-left-radius: 4px;
-            font-size: 13px; line-height: 1.4; max-width: 85%;
-            color: #e0e0e0;
-        }
-        .msg-name { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; display: block; }
-        
-        .msg.system { justify-content: center; }
-        .msg.system .msg-bubble { background: transparent; color: var(--text-muted); font-size: 11px; border: 1px solid var(--glass-border); border-radius: 20px; padding: 4px 12px; }
-
-        .input-bar { padding: 15px; border-top: 1px solid var(--glass-border); display: flex; gap: 10px; }
-        .chat-input {
-            flex: 1; background: rgba(0,0,0,0.2); border: none; padding: 12px;
-            border-radius: 50px; color: #fff; font-size: 13px;
-        }
-        .send-btn {
-            width: 40px; height: 40px; border-radius: 50%; border: none;
-            background: #fff; color: #000; cursor: pointer;
-            display: flex; justify-content: center; align-items: center;
+        /* Play/Pause Büyük Buton */
+        .play-btn {
+            width: 45px; height: 45px; border-radius: 50%; border: none;
+            background: #fff; color: #000; font-size: 16px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
             transition: 0.2s;
         }
-        .send-btn:hover { transform: scale(1.1); }
+        .play-btn:hover { transform: scale(1.1); box-shadow: 0 0 20px rgba(255,255,255,0.4); }
 
-        /* User List Items */
-        .user-row {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 12px; background: rgba(255,255,255,0.03);
-            border-radius: var(--radius-md); transition: 0.2s;
-        }
-        .user-row:hover { background: rgba(255,255,255,0.06); }
+        /* Ses ve Diğer Butonlar */
+        .icon-btn { background: transparent; border: none; color: #fff; font-size: 16px; cursor: pointer; opacity: 0.7; transition: 0.2s; }
+        .icon-btn:hover { opacity: 1; }
+        
+        input[type=range].vol-slider { -webkit-appearance: none; background: transparent; width: 80px; cursor: pointer; }
+        input[type=range].vol-slider::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
+        input[type=range].vol-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 10px; width: 10px; border-radius: 50%; background: #fff; margin-top: -3px; }
+
+        /* --- SIDEBAR --- */
+        .sidebar { width: 360px; display: flex; flex-direction: column; border-radius: var(--radius-lg); overflow: hidden; }
+        .tabs { display: flex; padding: 5px; gap: 5px; border-bottom: 1px solid var(--glass-border); }
+        .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; color: var(--text-muted); font-weight: 500; font-size: 13px; cursor: pointer; border-radius: var(--radius-sm); transition: 0.3s; }
+        .tab-btn.active { background: rgba(255,255,255,0.05); color: #fff; }
+        .content-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .msg { display: flex; gap: 10px; align-items: flex-end; }
+        .msg-img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+        .msg-bubble { background: rgba(255,255,255,0.05); padding: 10px 14px; border-radius: 18px; border-bottom-left-radius: 4px; font-size: 13px; line-height: 1.4; color: #e0e0e0; }
+        .msg-name { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; display: block; }
+        .input-bar { padding: 15px; border-top: 1px solid var(--glass-border); display: flex; gap: 10px; }
+        .chat-input { flex: 1; background: rgba(0,0,0,0.2); border: none; padding: 12px; border-radius: 50px; color: #fff; font-size: 13px; }
+        .send-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: #fff; color: #000; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
+        
+        .user-row { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.03); border-radius: var(--radius-md); }
         .user-meta { display: flex; align-items: center; gap: 12px; }
         
-        /* Admin Modal */
-        .admin-modal-content { width: 300px; text-align: center; }
-        
-        /* Admin Panel (Video Source) */
-        #admin-tools {
-            display: none; padding: 15px; background: rgba(168, 85, 247, 0.1);
-            border: 1px solid rgba(168, 85, 247, 0.2); margin: 0 20px 20px 20px;
-            border-radius: var(--radius-md); gap: 10px; align-items: center;
-        }
-        
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* Responsive */
+        #admin-tools { display: none; padding: 15px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); margin: 0 20px 20px 20px; border-radius: var(--radius-md); gap: 10px; align-items: center; }
+        .admin-modal-content { width: 300px; }
+
         @media (max-width: 850px) { .app-container { flex-direction: column; padding: 10px; } .sidebar { width: 100%; height: 300px; } }
     </style>
 </head>
@@ -263,16 +162,11 @@
     <div id="login-overlay" class="overlay">
         <div class="login-card glass-panel">
             <div class="brand-logo">WatchTogether</div>
-            <p style="color:var(--text-muted); font-size:13px; margin-bottom:20px;">Sinematik Deneyim</p>
-            
-            <div class="avatar-wrapper">
-                <img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp">
-            </div>
-            
+            <p style="color:var(--text-muted); font-size:13px; margin-bottom:20px;">Studio Access</p>
+            <div class="avatar-wrapper"><img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp"></div>
             <input type="text" id="usernameInput" class="input-field" placeholder="İsminiz" maxlength="15">
-            <input type="email" id="emailInput" class="input-field" placeholder="E-Posta (Zorunlu)" oninput="updateAvatarPreview()">
+            <input type="email" id="emailInput" class="input-field" placeholder="E-Posta" oninput="updateAvatarPreview()">
             <input type="password" id="userPassInput" class="input-field" placeholder="Oda Şifresi" maxlength="20">
-            
             <button class="btn-primary" onclick="submitProfile()">Odaya Katıl</button>
             <p id="login-error-msg" style="color:#ef4444; font-size:12px; margin-top:15px; display:none;"></p>
         </div>
@@ -281,24 +175,22 @@
     <div id="admin-popup" class="overlay hidden">
         <div class="login-card glass-panel admin-modal-content">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                <span style="font-weight:700;">Yönetici Erişimi</span>
+                <span style="font-weight:700;">Yönetici</span>
                 <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="toggleAdminPopup()"></i>
             </div>
-            <input type="password" id="passInput" class="input-field" placeholder="Master Şifre">
-            <button class="btn-primary" onclick="girisYap()">Doğrula</button>
+            <input type="password" id="passInput" class="input-field" placeholder="Şifre">
+            <button class="btn-primary" onclick="girisYap()">Giriş</button>
             <p id="login-msg" style="color:#ef4444; font-size:12px; margin-top:10px;"></p>
         </div>
     </div>
 
     <div class="app-container">
-        
         <div class="main-stage">
             <div class="nav-bar">
                 <div class="user-pill glass-panel">
                     <img id="my-mini-avatar" src="">
-                    <span id="my-name-display" style="font-size:13px; font-weight:500;">Misafir</span>
+                    <span id="my-name-display">Misafir</span>
                 </div>
-                
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span id="status-text" style="font-size:12px; color:rgba(255,255,255,0.4);">İZLEYİCİ</span>
                     <button class="admin-trigger" onclick="toggleAdminPopup()"><i class="fa-solid fa-gear"></i></button>
@@ -306,25 +198,39 @@
             </div>
 
             <div id="admin-tools">
-                <input type="text" id="videoLink" class="input-field" style="margin:0; background:rgba(0,0,0,0.2);" placeholder="YouTube Linki Yapıştır...">
-                <button class="action-btn" style="background:#fff; color:#000; border:none; font-weight:700;" onclick="videoDegistir()">YAYINLA</button>
+                <input type="text" id="videoLink" class="input-field" style="margin:0; background:rgba(0,0,0,0.2);" placeholder="YouTube Linki...">
+                <button class="btn-primary" style="width:auto; margin:0;" onclick="videoDegistir()">YAYINLA</button>
             </div>
 
             <div class="cinema-display glass-panel">
-                <div id="placeholder-text">YAYIN BEKLENİYOR</div>
+                <div id="placeholder-text">YAYIN YOK</div>
                 <div id="blocker"></div>
                 <div id="player-wrapper"><div id="player"></div></div>
             </div>
 
             <div class="control-dock glass-panel">
-                <div class="slider-group">
-                    <i id="mute-icon" class="fa-solid fa-volume-high" style="cursor:pointer; width:20px;" onclick="toggleMute()"></i>
-                    <input type="range" id="vol-slider" min="0" max="100" value="100" oninput="setVolume(this.value)">
-                    <span id="mute-lock-indicator" style="display:none; color:#ef4444; font-size:10px; font-weight:700;">KİLİTLİ</span>
+                <div class="progress-container">
+                    <span id="current-time" class="time-display">0:00</span>
+                    <input type="range" id="seek-bar" class="seek-slider" value="0" min="0" step="1" oninput="onSeekInput(this.value)" onchange="onSeekChange(this.value)">
+                    <span id="duration-time" class="time-display">0:00</span>
                 </div>
-                <div style="display:flex; gap:10px;">
-                    <button class="action-btn" onclick="syncNow()"><i class="fa-solid fa-rotate"></i> Senkron</button>
-                    <button class="action-btn" onclick="toggleFullScreen()"><i class="fa-solid fa-expand"></i> Tam Ekran</button>
+
+                <div class="dock-bottom">
+                    <div class="left-controls">
+                        <button class="play-btn" onclick="togglePlay()">
+                            <i id="play-icon" class="fa-solid fa-play"></i>
+                        </button>
+                        
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <i id="mute-icon" class="fa-solid fa-volume-high icon-btn" onclick="toggleMute()"></i>
+                            <input type="range" id="vol-slider" class="vol-slider" min="0" max="100" value="100" oninput="setVolume(this.value)">
+                        </div>
+                    </div>
+
+                    <div class="right-controls">
+                        <button class="icon-btn" onclick="syncNow()" title="Senkronize Et"><i class="fa-solid fa-rotate"></i></button>
+                        <button class="icon-btn" onclick="toggleFullScreen()" title="Tam Ekran"><i class="fa-solid fa-expand"></i></button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -332,21 +238,14 @@
         <div class="sidebar glass-panel">
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchTab('chat')">Sohbet</button>
-                <button class="tab-btn" onclick="switchTab('users')">İzleyiciler</button>
+                <button class="tab-btn" onclick="switchTab('users')">Kişiler</button>
             </div>
-
-            <div id="chat-panel" class="content-area">
-                <div id="chat-messages"></div>
-            </div>
-            
+            <div id="chat-panel" class="content-area"><div id="chat-messages"></div></div>
             <div class="input-bar" id="chat-input-bar">
-                <input type="text" id="chatInput" class="chat-input" placeholder="Bir şeyler yaz..." onkeypress="if(event.key==='Enter') sendMessage()">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Mesaj..." onkeypress="if(event.key==='Enter') sendMessage()">
                 <button class="send-btn" onclick="sendMessage()"><i class="fa-solid fa-arrow-up"></i></button>
             </div>
-
-            <div id="users-panel" class="content-area" style="display:none;">
-                <div id="user-list-container"></div>
-            </div>
+            <div id="users-panel" class="content-area" style="display:none;"><div id="user-list-container"></div></div>
         </div>
     </div>
 
@@ -355,8 +254,7 @@
     <script src="/socket.io/socket.io.js"></script>
 
     <script>
-        // --- 1. ARKA PLAN (THREE.JS FLUID SHADER) ---
-        // Lüks ve sakinleştirici bir arka plan efekti
+        // --- THREE.JS BACKGROUND ---
         const initBackground = () => {
             const container = document.getElementById('canvas-container');
             const scene = new THREE.Scene();
@@ -364,261 +262,169 @@
             const renderer = new THREE.WebGLRenderer({ alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             container.appendChild(renderer.domElement);
-
-            const fragmentShader = `
-                uniform float time;
-                uniform vec2 resolution;
-                
-                void main() {
-                    vec2 uv = gl_FragCoord.xy / resolution.xy;
-                    
-                    // Slow moving blobs of color
-                    float t = time * 0.5;
-                    
-                    float x = uv.x;
-                    float y = uv.y;
-                    
-                    float v1 = sin(x * 5.0 + t);
-                    float v2 = cos(y * 5.0 + t * 1.5);
-                    float v3 = sin((x + y) * 5.0 + t * 0.5);
-                    
-                    float val = v1 + v2 + v3;
-                    
-                    // Deep Midnight Blue & Soft Purple Palette
-                    vec3 color1 = vec3(0.05, 0.05, 0.1); // Dark base
-                    vec3 color2 = vec3(0.2, 0.1, 0.4);   // Purple
-                    vec3 color3 = vec3(0.1, 0.3, 0.5);   // Blue
-                    
-                    vec3 finalColor = mix(color1, color2, smoothstep(-2.0, 2.0, val));
-                    finalColor = mix(finalColor, color3, smoothstep(-1.0, 1.0, val * 0.5));
-                    
-                    gl_FragColor = vec4(finalColor, 1.0);
-                }
-            `;
-
             const material = new THREE.ShaderMaterial({
                 uniforms: { time: { value: 0.0 }, resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) } },
                 vertexShader: `void main() { gl_Position = vec4( position, 1.0 ); }`,
-                fragmentShader: fragmentShader
+                fragmentShader: `uniform float time; uniform vec2 resolution; void main() { vec2 uv = gl_FragCoord.xy / resolution.xy; float t = time * 0.5; float val = sin(uv.x * 5.0 + t) + cos(uv.y * 5.0 + t * 1.5); vec3 c1 = vec3(0.05, 0.05, 0.1); vec3 c2 = vec3(0.2, 0.1, 0.4); vec3 c3 = vec3(0.1, 0.3, 0.5); vec3 col = mix(c1, c2, smoothstep(-2.0, 2.0, val)); col = mix(col, c3, smoothstep(-1.0, 1.0, val * 0.5)); gl_FragColor = vec4(col, 1.0); }`
             });
-
-            const plane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
-            scene.add(plane);
-
-            function animate() {
-                material.uniforms.time.value += 0.01;
-                renderer.render(scene, camera);
-                requestAnimationFrame(animate);
-            }
+            scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
+            function animate() { material.uniforms.time.value += 0.01; renderer.render(scene, camera); requestAnimationFrame(animate); }
             animate();
-            window.addEventListener('resize', () => { 
-                renderer.setSize(window.innerWidth, window.innerHeight); 
-                material.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
-            });
+            window.addEventListener('resize', () => { renderer.setSize(window.innerWidth, window.innerHeight); material.uniforms.resolution.value.set(window.innerWidth, window.innerHeight); });
         };
         initBackground();
-
-        // --- GİRİŞ ANİMASYONU (GSAP) ---
         gsap.to(".login-card", { opacity: 1, y: 0, duration: 1, ease: "power3.out", delay: 0.2 });
 
-        // --- MANTIK KODLARI (KORUNDU) ---
+        // --- MANTIK ---
         const socket = io();
         let player, isAdmin = false, isRemote = false, forcedMute = false, pendingSyncData = null;
         let myAvatarUrl = "https://www.gravatar.com/avatar/?d=mp";
+        
+        // Seek Bar Logic
+        let isDragging = false; // Çubuğu tutarken güncelleme yapma
 
-        // Avatar Logic
+        // LOGIN
         window.onload = () => {
             const savedName = localStorage.getItem('wt_username');
             const savedEmail = localStorage.getItem('wt_email');
             if (savedName) document.getElementById('usernameInput').value = savedName;
-            if (savedEmail) {
-                document.getElementById('emailInput').value = savedEmail;
-                updateAvatarPreview();
-            }
+            if (savedEmail) { document.getElementById('emailInput').value = savedEmail; updateAvatarPreview(); }
         }
-
         function updateAvatarPreview() {
             const email = document.getElementById('emailInput').value.trim().toLowerCase();
-            if (email) {
-                const hash = CryptoJS.MD5(email).toString();
-                myAvatarUrl = `https://www.gravatar.com/avatar/${hash}?d=robohash`;
-            } else { myAvatarUrl = "https://www.gravatar.com/avatar/?d=mp"; }
+            if(email) myAvatarUrl = `https://www.gravatar.com/avatar/${CryptoJS.MD5(email)}?d=robohash`;
             document.getElementById('preview-img').src = myAvatarUrl;
         }
-
-        function showLoginError(msg) {
-            const el = document.getElementById('login-error-msg');
-            el.style.display = 'block';
-            el.innerText = msg;
-            gsap.from(el, {x: 10, duration: 0.1, yoyo:true, repeat:3}); // Shake effect
-        }
-
         function submitProfile() {
             const name = document.getElementById('usernameInput').value.trim();
             const email = document.getElementById('emailInput').value.trim();
             const pass = document.getElementById('userPassInput').value.trim();
-            
-            if(!name || !email || !pass) { showLoginError("Lütfen tüm alanları doldurunuz."); return; }
-
-            localStorage.setItem('wt_username', name);
-            localStorage.setItem('wt_email', email);
-
+            if(!name || !email || !pass) { document.getElementById('login-error-msg').innerText="Eksik bilgi."; document.getElementById('login-error-msg').style.display='block'; return; }
+            localStorage.setItem('wt_username', name); localStorage.setItem('wt_email', email);
             socket.emit('set_user_data', { name, email, password: pass, avatar: myAvatarUrl });
         }
-
         socket.on('login_success', () => {
-            // Transition Animation
             gsap.to("#login-overlay", { opacity: 0, duration: 0.5, onComplete: () => {
                 document.getElementById('login-overlay').classList.add('hidden');
                 gsap.to(".app-container", { opacity: 1, duration: 1 });
             }});
-            
-            const name = document.getElementById('usernameInput').value;
-            document.getElementById('my-name-display').innerText = name;
+            document.getElementById('my-name-display').innerText = document.getElementById('usernameInput').value;
             document.getElementById('my-mini-avatar').src = myAvatarUrl;
-            document.getElementById('my-mini-avatar').style.display = 'block';
+        });
+        socket.on('login_failed', (r) => { 
+            const el = document.getElementById('login-error-msg'); el.innerText=r; el.style.display='block';
+            gsap.from(el, {x:10, duration:0.1, yoyo:true, repeat:3});
         });
 
-        socket.on('login_failed', (reason) => { showLoginError(reason || "Giriş başarısız."); });
-
-        // --- APP UI LOGIC ---
+        // CHAT & UI
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelector(`button[onclick="switchTab('${tab}')"]`).classList.add('active');
-            
-            if(tab === 'chat') {
-                document.getElementById('chat-panel').style.display = 'flex';
-                document.getElementById('chat-input-bar').style.display = 'flex';
-                document.getElementById('users-panel').style.display = 'none';
-            } else {
-                document.getElementById('chat-panel').style.display = 'none';
-                document.getElementById('chat-input-bar').style.display = 'none';
-                document.getElementById('users-panel').style.display = 'flex';
-            }
+            if(tab==='chat') { document.getElementById('chat-panel').style.display='flex'; document.getElementById('chat-input-bar').style.display='flex'; document.getElementById('users-panel').style.display='none'; }
+            else { document.getElementById('chat-panel').style.display='none'; document.getElementById('chat-input-bar').style.display='none'; document.getElementById('users-panel').style.display='flex'; }
         }
-
-        // --- SOHBET & LİSTE ---
-        function sendMessage() {
-            const inp = document.getElementById('chatInput');
-            if(inp.value.trim()) { socket.emit('send_message', inp.value); inp.value = ''; }
-        }
-
-        socket.on('chat_history', (h) => {
-            const box = document.getElementById('chat-messages'); box.innerHTML='';
-            h.forEach(m => appendMsg(m));
-        });
+        function sendMessage() { const inp=document.getElementById('chatInput'); if(inp.value.trim()){socket.emit('send_message', inp.value); inp.value='';} }
+        socket.on('chat_history', (h) => { document.getElementById('chat-messages').innerHTML=''; h.forEach(m=>appendMsg(m)); });
         socket.on('chat_message', (m) => appendMsg(m));
-
         function appendMsg(data) {
-            const box = document.getElementById('chat-messages');
-            const div = document.createElement('div');
-            div.className = `msg ${data.type}`;
-            
-            if(data.type === 'system') {
-                div.innerHTML = `<div class="msg-bubble" style="text-align:center; width:100%; color:#94a3b8;">${data.text}</div>`;
-            } else {
-                div.innerHTML = `
-                    <img class="msg-img" src="${data.avatar || 'https://www.gravatar.com/avatar/?d=mp'}">
-                    <div class="msg-content">
-                        <span class="msg-name">${data.user}</span>
-                        <div class="msg-bubble">${data.text}</div>
-                    </div>
-                `;
-            }
-            box.appendChild(div); box.scrollTop = box.scrollHeight;
+            const box=document.getElementById('chat-messages'); const div=document.createElement('div'); div.className=`msg ${data.type}`;
+            if(data.type==='system') div.innerHTML=`<div class="msg-bubble" style="text-align:center;width:100%;background:transparent;color:#94a3b8;font-size:11px;">${data.text}</div>`;
+            else div.innerHTML=`<img class="msg-img" src="${data.avatar}"><div class="msg-content"><span class="msg-name">${data.user}</span><div class="msg-bubble">${data.text}</div></div>`;
+            box.appendChild(div); box.scrollTop=box.scrollHeight;
         }
-
-        socket.on('admin_spy_list', (u) => renderList(u, true));
-        socket.on('update_user_list', (u) => { if(!isAdmin) renderList(u, false); });
-
+        socket.on('admin_spy_list', (u)=>renderList(u,true)); socket.on('update_user_list', (u)=>{if(!isAdmin)renderList(u,false)});
         function renderList(users, spy) {
-            const con = document.getElementById('user-list-container'); con.innerHTML='';
-            Object.keys(users).forEach(id => {
-                const u = users[id];
-                const div = document.createElement('div'); div.className = 'user-row';
-                
-                let icons = u.muted ? '<i class="fa-solid fa-microphone-slash" style="color:#f59e0b"></i>' : '';
-                let spyInfo = '';
-                if(spy && u.email) spyInfo = `<div style="font-size:10px; color:#666; margin-top:4px;">${u.email} • ${u.password}</div>`;
-                
-                let btns = '';
-                if(isAdmin && id !== socket.id) {
-                    btns = `
-                        <div style="display:flex; gap:5px;">
-                            <button class="action-btn" style="padding:4px 8px;" onclick="adm('${id}','mute')">${u.muted?'Ses Aç':'Sustur'}</button>
-                            <button class="action-btn" style="padding:4px 8px; border-color:#ef4444; color:#ef4444;" onclick="adm('${id}','ban')">Ban</button>
-                        </div>
-                    `;
-                }
-
-                div.innerHTML = `
-                    <div style="flex:1;">
-                        <div class="user-meta">
-                            <img src="${u.avatar||'https://www.gravatar.com/avatar/?d=mp'}" style="width:32px; height:32px; border-radius:50%;">
-                            <div>
-                                <div style="font-size:13px; font-weight:500;">${u.name} ${icons}</div>
-                                ${spyInfo}
-                            </div>
-                        </div>
-                    </div>
-                    ${btns}
-                `;
+            const con=document.getElementById('user-list-container'); con.innerHTML='';
+            Object.keys(users).forEach(id=>{
+                const u=users[id]; const div=document.createElement('div'); div.className='user-row';
+                let btns=''; if(isAdmin&&id!==socket.id) btns=`<div style="display:flex;gap:5px;"><button class="action-btn" style="padding:4px;font-size:10px;" onclick="adm('${id}','mute')">${u.muted?'Ses':'Sus'}</button><button class="action-btn" style="padding:4px;border-color:#ef4444;color:#ef4444;font-size:10px;" onclick="adm('${id}','ban')">Ban</button></div>`;
+                let spyInfo = (spy && u.email) ? `<div style="font-size:10px;color:#666;">${u.email} • ${u.password}</div>` : '';
+                div.innerHTML=`<div style="flex:1;"><div class="user-meta"><img src="${u.avatar}" style="width:32px;height:32px;border-radius:50%;"><div><div style="font-size:13px;font-weight:500;">${u.name} ${u.muted?'🔇':''}</div>${spyInfo}</div></div></div>${btns}`;
                 con.appendChild(div);
             });
         }
-        function adm(id, type) { socket.emit('admin_action', { targetId: id, action: type }); }
+        function adm(id,type){ socket.emit('admin_action',{targetId:id, action:type}); }
 
-        // --- YÖNETİM ---
-        function toggleAdminPopup() { 
-            const p = document.getElementById('admin-popup'); 
-            p.classList.toggle('hidden');
-            document.getElementById('login-msg').innerText="";
-            document.getElementById('passInput').value="";
-        }
-        function girisYap() { 
-            const pwd = document.getElementById('passInput').value;
-            if(pwd) {
-                document.getElementById('login-msg').innerText="Kontrol ediliyor...";
-                socket.emit('admin_girisi', pwd);
-            }
-        }
-        socket.on('admin_error', (m) => document.getElementById('login-msg').innerText=m);
-        socket.on('admin_basarili', (s) => {
-            if(s) {
-                isAdmin=true; toggleAdminPopup();
-                document.getElementById('admin-tools').style.display='flex';
-                document.getElementById('status-text').innerText="YÖNETİCİ MODU";
-                document.getElementById('status-text').style.color="#a855f7";
-                gsap.from("#admin-tools", {height:0, opacity:0, duration:0.5});
-            }
-        });
+        // ADMIN
+        function toggleAdminPopup() { const p=document.getElementById('admin-popup'); p.classList.toggle('hidden'); document.getElementById('login-msg').innerText=""; document.getElementById('passInput').value=""; }
+        function girisYap() { const p=document.getElementById('passInput').value; if(p) socket.emit('admin_girisi', p); }
+        socket.on('admin_error', (m)=>document.getElementById('login-msg').innerText=m);
+        socket.on('admin_basarili', (s)=>{ if(s){ isAdmin=true; toggleAdminPopup(); document.getElementById('admin-tools').style.display='flex'; document.getElementById('blocker').style.display='none'; document.getElementById('status-text').innerText="YÖNETİCİ"; document.getElementById('status-text').style.color="#a855f7"; } });
 
-        socket.on('force_disconnect', (reason) => {
-            document.body.innerHTML = `<div style="display:flex; height:100vh; width:100%; justify-content:center; align-items:center; flex-direction:column; color:#fff;">
-                <h2 style="color:#ef4444;">Bağlantı Kesildi</h2>
-                <p style="opacity:0.7;">${reason}</p>
-            </div>`;
-        });
-
-        // --- PLAYER ---
+        // YOUTUBE PLAYER & CUSTOM CONTROLS
         var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; var firstScriptTag = document.getElementsByTagName('script')[0]; firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-        function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'controls': 0, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3, 'playsinline': 1 }, events: { 'onStateChange': onPlayerStateChange, 'onReady': onPlayerReady } }); }
-        function onPlayerReady() { player.mute(); document.getElementById('vol-slider').value = 0; updateMuteIcon(0); if (pendingSyncData) { applySync(pendingSyncData); pendingSyncData = null; } }
-        function videoDegistir() { let url = document.getElementById('videoLink').value; let vId = (url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/)||[])[7]; if(vId && vId.length==11) { document.getElementById('placeholder-text').style.display='none'; player.loadVideoById(vId); socket.emit('video_action', {type:'change', videoId:vId}); } }
-        function onPlayerStateChange(event) { if(event.data === YT.PlayerState.PLAYING) document.getElementById('placeholder-text').style.display='none'; if(isRemote || !isAdmin) return; if(event.data === YT.PlayerState.PLAYING) socket.emit('video_action', {type:'play', time:player.getCurrentTime()}); else if(event.data === YT.PlayerState.PAUSED) socket.emit('video_action', {type:'pause', time:player.getCurrentTime()}); }
-        function applySync(data) { isRemote = true; document.getElementById('placeholder-text').style.display='none'; if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) { player.loadVideoById(data.videoId, data.time); } if(data.type==='play') { let diff = Math.abs(player.getCurrentTime() - data.time); if(diff > 1) player.seekTo(data.time, true); player.playVideo(); } else if(data.type==='pause') { player.seekTo(data.time, true); player.pauseVideo(); } else if(data.type==='change') { player.loadVideoById(data.videoId); } setTimeout(()=>isRemote=false, 1000); }
-        socket.on('sync_video', (data) => { if (!player || !player.loadVideoById) { pendingSyncData = data; } else { applySync(data); } });
-        function toggleMute() { if(forcedMute) return; if(player.isMuted()) { player.unMute(); document.getElementById('vol-slider').value = player.getVolume(); updateMuteIcon(player.getVolume()); } else { player.mute(); document.getElementById('vol-slider').value = 0; updateMuteIcon(0); } }
-        function updateMuteIcon(vol) { const icon = document.getElementById('mute-icon'); if(vol == 0) icon.className = "fa-solid fa-volume-xmark"; else if(vol < 50) icon.className = "fa-solid fa-volume-low"; else icon.className = "fa-solid fa-volume-high"; }
-        function setVolume(v) { if(!forcedMute) { if(v > 0 && player.isMuted()) player.unMute(); if(v == 0) player.mute(); player.setVolume(v); updateMuteIcon(v); } }
-        function syncNow() { location.reload(); }
-        function toggleFullScreen() { var e = document.getElementById("player-wrapper"); if(!document.fullscreenElement) e.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); }
+        function onYouTubeIframeAPIReady() { 
+            player = new YT.Player('player', { 
+                height: '100%', width: '100%', 
+                playerVars: { 'controls': 0, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3, 'playsinline': 1 }, 
+                events: { 'onStateChange': onPlayerStateChange, 'onReady': onPlayerReady } 
+            }); 
+        }
+        function onPlayerReady() { 
+            player.mute(); // Autoplay fix
+            if(pendingSyncData) { applySync(pendingSyncData); pendingSyncData=null; }
+            // Sürekli güncelleme döngüsü
+            setInterval(updateProgressBar, 500);
+        }
+        function videoDegistir() { let url=document.getElementById('videoLink').value; let vId=(url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/)||[])[7]; if(vId&&vId.length==11){ document.getElementById('placeholder-text').style.display='none'; player.loadVideoById(vId); socket.emit('video_action', {type:'change', videoId:vId}); } }
         
-        socket.on('toggle_mute_lock', (m) => { 
-            forcedMute = m; 
-            document.getElementById('mute-lock-indicator').style.display = m ? 'inline' : 'none';
-            if(m) { player.mute(); player.setVolume(0); document.getElementById('vol-slider').value=0; } 
-        });
+        function onPlayerStateChange(event) { 
+            updatePlayButton(event.data === YT.PlayerState.PLAYING);
+            if(event.data===YT.PlayerState.PLAYING) document.getElementById('placeholder-text').style.display='none';
+            
+            if(isRemote || !isAdmin) return;
+            if(event.data===YT.PlayerState.PLAYING) socket.emit('video_action',{type:'play', time:player.getCurrentTime()});
+            else if(event.data===YT.PlayerState.PAUSED) socket.emit('video_action',{type:'pause', time:player.getCurrentTime()});
+        }
+
+        // --- CUSTOM CONTROLS LOGIC ---
+        function togglePlay() {
+            if(!isAdmin) return;
+            if(player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
+            else player.playVideo();
+        }
+        
+        function updatePlayButton(isPlaying) {
+            const icon = document.getElementById('play-icon');
+            if(isPlaying) { icon.className = "fa-solid fa-pause"; }
+            else { icon.className = "fa-solid fa-play"; }
+        }
+
+        // İlerleme Çubuğu Güncelleme
+        function updateProgressBar() {
+            if(!player || !player.getDuration || isDragging) return;
+            const duration = player.getDuration();
+            const current = player.getCurrentTime();
+            
+            const slider = document.getElementById('seek-bar');
+            slider.max = duration;
+            slider.value = current;
+            
+            document.getElementById('current-time').innerText = formatTime(current);
+            document.getElementById('duration-time').innerText = formatTime(duration);
+        }
+
+        function onSeekInput(val) { isDragging = true; document.getElementById('current-time').innerText = formatTime(val); }
+        function onSeekChange(val) {
+            isDragging = false;
+            if(!isAdmin) { updateProgressBar(); return; } // İzleyici saramaz
+            player.seekTo(val, true);
+            socket.emit('video_action', { type: 'play', time: val }); // Seek edince play atar
+        }
+
+        function formatTime(s) {
+            const min = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${min}:${sec<10?'0':''}${sec}`;
+        }
+
+        function applySync(data) { isRemote=true; document.getElementById('placeholder-text').style.display='none'; if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) { player.loadVideoById(data.videoId, data.time); } if(data.type==='play'){ let diff=Math.abs(player.getCurrentTime()-data.time); if(diff>1)player.seekTo(data.time,true); player.playVideo(); } else if(data.type==='pause'){ player.seekTo(data.time,true); player.pauseVideo(); } else if(data.type==='change'){ player.loadVideoById(data.videoId); } setTimeout(()=>isRemote=false, 1000); }
+        socket.on('sync_video', (d) => { if(!player||!player.loadVideoById) pendingSyncData=d; else applySync(d); });
+        
+        function toggleMute(){ if(forcedMute)return; if(player.isMuted()){player.unMute(); document.getElementById('vol-slider').value=player.getVolume();} else {player.mute(); document.getElementById('vol-slider').value=0;} }
+        function setVolume(v){ if(!forcedMute){ if(v>0&&player.isMuted())player.unMute(); if(v==0)player.mute(); player.setVolume(v); } }
+        function syncNow(){ location.reload(); }
+        function toggleFullScreen(){ var e=document.getElementById("player-wrapper"); if(!document.fullscreenElement)e.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); }
     </script>
 </body>
 </html>
