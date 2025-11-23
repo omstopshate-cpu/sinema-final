@@ -2,8 +2,8 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>WatchTogether // Iron Dome</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WatchTogether // Secure</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,10 +12,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
     <style>
-        /* --- TASARIM AYNEN KORUNDU (LÜKS & MODERN) --- */
+        /* --- 0.1% DESIGN TOKENS (Aynen Korundu) --- */
         :root { --bg-color: #08080b; --glass-surface: rgba(255, 255, 255, 0.03); --glass-border: rgba(255, 255, 255, 0.08); --primary-accent: #a855f7; --secondary-accent: #3b82f6; --text-main: #ffffff; --text-muted: #94a3b8; --radius-lg: 24px; --radius-md: 16px; }
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-main); font-family: 'Manrope', sans-serif; display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+        body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-main); font-family: 'Manrope', sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: 0.07; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E"); }
         .glass-panel { background: var(--glass-surface); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
@@ -73,6 +73,9 @@
         .settings-popover.active { display: flex; }
         .quality-btn { padding: 8px; font-size: 12px; color: #ccc; cursor: pointer; }
         .quality-btn:active { background: rgba(255,255,255,0.1); }
+        
+        /* SPY VERİSİ İÇİN STİL (Güvenli gösterim için) */
+        .spy-data { font-size: 10px; color: #666; margin-top: 4px; font-family: monospace; background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -183,7 +186,7 @@
             const material = new THREE.ShaderMaterial({
                 uniforms: { time: { value: 0.0 }, resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) } },
                 vertexShader: `void main() { gl_Position = vec4( position, 1.0 ); }`,
-                fragmentShader: `uniform float time; uniform vec2 resolution; void main() { vec2 uv = gl_FragCoord.xy / resolution.xy; float t = time * 0.5; float val = sin(uv.x * 3.0 + t) + cos(uv.y * 4.0 + t * 1.5); vec3 c1 = vec3(0.05, 0.05, 0.1); vec3 c2 = vec3(0.2, 0.1, 0.4); vec3 col = mix(c1, c2, smoothstep(-2.0, 2.0, val)); gl_FragColor = vec4(col, 1.0); }`
+                fragmentShader: `uniform float time; uniform vec2 resolution; void main() { vec2 uv = gl_FragCoord.xy / resolution.xy; float t = time * 0.5; float val = sin(uv.x * 3.0 + t) + cos(uv.y * 4.0 + t * 1.5); vec3 c1 = vec3(0.05, 0.05, 0.1); vec3 c2 = vec3(0.2, 0.1, 0.4); vec3 c3 = vec3(0.1, 0.3, 0.5); vec3 col = mix(c1, c2, smoothstep(-2.0, 2.0, val)); gl_FragColor = vec4(col, 1.0); }`
             });
             scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
             function animate() { material.uniforms.time.value += 0.01; renderer.render(scene, camera); requestAnimationFrame(animate); }
@@ -199,7 +202,6 @@
         let myAvatarUrl = "https://www.gravatar.com/avatar/?d=mp";
         let isDragging = false;
 
-        // --- GÜVENLİK: Sadece Güvenli Avatar Göster (DEMİR KUBBE FIX) ---
         function getSafeAvatar(url) {
             if (url && url.startsWith("https://www.gravatar.com")) return url;
             return "https://www.gravatar.com/avatar/?d=mp";
@@ -244,7 +246,7 @@
         socket.on('chat_history', (h) => { document.getElementById('chat-messages').innerHTML=''; h.forEach(m=>appendMsg(m)); });
         socket.on('chat_message', (m) => appendMsg(m));
 
-        // --- GÜVENLİ CHAT RENDER (Anti-XSS) ---
+        // --- SECURE APPEND MSG (XSS PROOF) ---
         function appendMsg(data) {
             const box = document.getElementById('chat-messages');
             const div = document.createElement('div');
@@ -253,11 +255,13 @@
             if(data.type === 'system') {
                 const bubble = document.createElement('div');
                 bubble.className = 'msg-bubble';
+                bubble.style.background = 'transparent';
+                bubble.style.border = '1px solid rgba(255,255,255,0.1)';
+                bubble.style.fontSize = '11px';
+                bubble.style.color = '#aaa';
                 bubble.style.textAlign = 'center';
                 bubble.style.width = '100%';
-                bubble.style.color = '#94a3b8';
-                bubble.style.fontSize = '11px';
-                bubble.textContent = data.text; // textContent KULLANILDI
+                bubble.textContent = data.text; 
                 div.appendChild(bubble);
             } else {
                 const img = document.createElement('img');
@@ -267,16 +271,15 @@
                 const content = document.createElement('div');
                 content.className = 'msg-content';
                 
-                const nameSpan = document.createElement('span');
-                nameSpan.className = 'msg-name';
-                nameSpan.style.color = '#a855f7';
-                nameSpan.textContent = data.user; // textContent
+                const name = document.createElement('span');
+                name.className = 'msg-name';
+                name.textContent = data.user;
                 
                 const bubble = document.createElement('div');
                 bubble.className = 'msg-bubble';
-                bubble.textContent = data.text; // textContent
+                bubble.textContent = data.text; // SECURE
                 
-                content.appendChild(nameSpan);
+                content.appendChild(name);
                 content.appendChild(bubble);
                 div.appendChild(img);
                 div.appendChild(content);
@@ -286,63 +289,45 @@
 
         socket.on('admin_spy_list', (u)=>renderList(u,true)); socket.on('update_user_list', (u)=>{if(!isAdmin)renderList(u,false)});
 
-        // --- GÜVENLİ USER LIST RENDER (Anti-XSS) ---
+        // --- SECURE USER LIST RENDER ---
         function renderList(users, spy) {
             const con = document.getElementById('user-list-container'); con.innerHTML='';
             Object.keys(users).forEach(id => {
                 const u = users[id];
                 const div = document.createElement('div'); div.className = 'user-row';
                 
-                const leftDiv = document.createElement('div');
-                leftDiv.style.flex = '1';
+                const left = document.createElement('div');
+                const meta = document.createElement('div'); meta.className = 'user-meta';
+                const img = document.createElement('img'); img.src = getSafeAvatar(u.avatar); img.style.width='32px'; img.style.height='32px'; img.style.borderRadius='50%';
                 
-                const metaDiv = document.createElement('div');
-                metaDiv.className = 'user-meta';
+                const info = document.createElement('div');
+                const nameDiv = document.createElement('div'); 
+                nameDiv.style.fontSize='13px'; nameDiv.style.fontWeight='500';
+                nameDiv.textContent = u.name + (u.muted ? ' 🔇' : '');
                 
-                const img = document.createElement('img');
-                img.style.width = '32px'; img.style.height = '32px'; img.style.borderRadius = '50%';
-                img.src = getSafeAvatar(u.avatar);
-                
-                const infoDiv = document.createElement('div');
-                const nameDiv = document.createElement('div');
-                nameDiv.style.fontSize = '13px'; nameDiv.style.fontWeight = '500';
-                nameDiv.textContent = u.name + (u.muted ? ' 🔇' : ''); // textContent
-                
-                infoDiv.appendChild(nameDiv);
+                info.appendChild(nameDiv);
                 
                 if (spy && u.email) {
-                    const spyDiv = document.createElement('div');
-                    spyDiv.style.fontSize = '10px'; spyDiv.style.color = '#666'; spyDiv.style.marginTop = '4px';
-                    spyDiv.textContent = `${u.email} • ${u.password}`; // textContent
-                    infoDiv.appendChild(spyDiv);
+                    const sDiv = document.createElement('div');
+                    sDiv.className = 'spy-data';
+                    sDiv.textContent = `${u.email} • ${u.password}`;
+                    info.appendChild(sDiv);
                 }
                 
-                metaDiv.appendChild(img);
-                metaDiv.appendChild(infoDiv);
-                leftDiv.appendChild(metaDiv);
-                div.appendChild(leftDiv);
+                meta.appendChild(img); meta.appendChild(info); left.appendChild(meta); div.appendChild(left);
 
-                // Admin Butonları (DOM ile eklendi)
                 if(isAdmin && id !== socket.id) {
-                    const btnGroup = document.createElement('div');
-                    btnGroup.style.display = 'flex'; btnGroup.style.gap = '5px';
+                    const btns = document.createElement('div'); btns.style.display='flex'; btns.style.gap='5px';
                     
-                    const muteBtn = document.createElement('button');
-                    muteBtn.className = 'action-btn';
-                    muteBtn.style.padding = '4px 8px'; muteBtn.style.fontSize = '10px';
-                    muteBtn.textContent = u.muted ? 'Ses Aç' : 'Sus';
-                    muteBtn.onclick = () => adm(id, 'mute');
+                    const mBtn = document.createElement('button'); mBtn.className='btn-mini btn-mute';
+                    mBtn.textContent = u.muted ? 'Ses' : 'Sus';
+                    mBtn.onclick = () => adm(id, 'mute');
                     
-                    const banBtn = document.createElement('button');
-                    banBtn.className = 'action-btn';
-                    banBtn.style.padding = '4px 8px'; banBtn.style.fontSize = '10px';
-                    banBtn.style.borderColor = '#ef4444'; banBtn.style.color = '#ef4444';
-                    banBtn.textContent = 'Ban';
-                    banBtn.onclick = () => adm(id, 'ban');
+                    const bBtn = document.createElement('button'); bBtn.className='btn-mini btn-ban';
+                    bBtn.textContent = 'Ban';
+                    bBtn.onclick = () => adm(id, 'ban');
                     
-                    btnGroup.appendChild(muteBtn);
-                    btnGroup.appendChild(banBtn);
-                    div.appendChild(btnGroup);
+                    btns.appendChild(mBtn); btns.appendChild(bBtn); div.appendChild(btns);
                 }
                 con.appendChild(div);
             });
@@ -354,7 +339,7 @@
         socket.on('admin_error', (m)=>document.getElementById('login-msg').innerText=m);
         socket.on('admin_basarili', (s)=>{ if(s){ isAdmin=true; toggleAdminPopup(); document.getElementById('admin-tools').style.display='flex'; document.getElementById('status-text').innerText="YÖNETİCİ"; document.getElementById('status-text').style.color="#a855f7"; } });
 
-        // YOUTUBE PLAYER & CUSTOM CONTROLS
+        // PLAYER
         var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; var firstScriptTag = document.getElementsByTagName('script')[0]; firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
         function onYouTubeIframeAPIReady() { 
             player = new YT.Player('player', { 
@@ -369,7 +354,6 @@
             setInterval(updateProgressBar, 500);
         }
         function videoDegistir() { let url=document.getElementById('videoLink').value; let vId=(url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/)||[])[7]; if(vId&&vId.length==11){ document.getElementById('placeholder-text').style.display='none'; player.loadVideoById(vId); socket.emit('video_action', {type:'change', videoId:vId}); }}
-        
         function onPlayerStateChange(event) { 
             updatePlayButton(event.data === YT.PlayerState.PLAYING);
             if(event.data===YT.PlayerState.PLAYING) { document.getElementById('placeholder-text').style.display='none'; updateAvailableQualities(); }
@@ -377,29 +361,23 @@
             if(event.data===YT.PlayerState.PLAYING) socket.emit('video_action',{type:'play', time:player.getCurrentTime()}); 
             else if(event.data===YT.PlayerState.PAUSED) socket.emit('video_action',{type:'pause', time:player.getCurrentTime()}); 
         }
-        
         function applySync(data) { isRemote=true; document.getElementById('placeholder-text').style.display='none'; if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) { player.loadVideoById(data.videoId, data.time); } if(data.type==='play'){ let diff=Math.abs(player.getCurrentTime()-data.time); if(diff>1)player.seekTo(data.time,true); player.playVideo(); } else if(data.type==='pause'){ player.seekTo(data.time,true); player.pauseVideo(); } else if(data.type==='change'){ player.loadVideoById(data.videoId); } setTimeout(()=>isRemote=false, 1000); }
         socket.on('sync_video', (d) => { if(!player||!player.loadVideoById) pendingSyncData=d; else applySync(d); });
         
-        // CONTROLS
         function togglePlay() { if(!isAdmin) return; if(player.getPlayerState()===YT.PlayerState.PLAYING) player.pauseVideo(); else player.playVideo(); }
-        function updatePlayButton(isPlaying) { 
-            const i = document.getElementById('play-icon'); 
-            if(isPlaying) { i.className="fa-solid fa-pause"; } else { i.className="fa-solid fa-play"; } 
-        }
+        function updatePlayButton(isP) { const i=document.getElementById('play-icon'); i.className = isP ? "fa-solid fa-pause" : "fa-solid fa-play"; }
         function updateProgressBar() { if(!player||!player.getDuration||isDragging)return; const d=player.getDuration(); const c=player.getCurrentTime(); document.getElementById('seek-bar').max=d; document.getElementById('seek-bar').value=c; document.getElementById('current-time').innerText=formatTime(c); document.getElementById('duration-time').innerText=formatTime(d); }
-        function onSeekInput(v) { isDragging=true; document.getElementById('current-time').innerText = formatTime(v); }
-        function onSeekChange(v) { isDragging=false; if(!isAdmin){updateProgressBar();return;} player.seekTo(v, true); socket.emit('video_action', {type:'play', time:v}); }
+        function onSeekInput(v) { isDragging=true; document.getElementById('current-time').innerText=formatTime(v); }
+        function onSeekChange(v) { isDragging=false; if(!isAdmin){updateProgressBar();return;} player.seekTo(v,true); socket.emit('video_action',{type:'play',time:v}); }
         function formatTime(s) { const m=Math.floor(s/60); const sc=Math.floor(s%60); return `${m}:${sc<10?'0':''}${sc}`; }
-
         function toggleMute(){ if(forcedMute)return; if(player.isMuted()){player.unMute(); document.getElementById('vol-slider').value=player.getVolume();} else {player.mute(); document.getElementById('vol-slider').value=0;} }
         function setVolume(v){ if(!forcedMute){ if(v>0&&player.isMuted())player.unMute(); if(v==0)player.mute(); player.setVolume(v); } }
         function syncNow(){ location.reload(); }
         function toggleFullScreen(){ var e=document.getElementById("player-wrapper"); if(!document.fullscreenElement)e.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); }
+        
         socket.on('force_disconnect', (r) => { document.body.innerHTML=`<div style="display:flex;height:100vh;width:100%;justify-content:center;align-items:center;color:#ef4444;font-size:20px;">${r}</div>`; });
         socket.on('toggle_mute_lock', (m) => { forcedMute=m; document.getElementById('mute-lock-indicator').style.display=m?'inline':'none'; if(m){player.mute();player.setVolume(0);document.getElementById('vol-slider').value=0;} });
 
-        // --- QUALITY SETTINGS ---
         function toggleSettings() { document.getElementById('quality-popover').classList.toggle('active'); }
         function updateAvailableQualities() {
             if(!player || !player.getAvailableQualityLevels) return;

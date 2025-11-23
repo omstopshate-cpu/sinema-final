@@ -6,9 +6,23 @@ const helmet = require('helmet');
 
 const app = express();
 
-// GÜVENLİK DUVARI (Hafifletilmiş - Scriptlere izin ver)
+// 1. ULTRA KATI GÜVENLİK DUVARI (CSP)
+// Bu ayar, tarayıcıya "Sadece benim izin verdiğim kaynakları çalıştır" der.
 app.use(helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "https://www.youtube.com", "https://s.ytimg.com", "https://cdnjs.cloudflare.com"],
+            frameSrc: ["'self'", "https://www.youtube.com"],
+            imgSrc: ["'self'", "data:", "https://www.gravatar.com"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+            connectSrc: ["'self'", "https://www.youtube.com", "https://googleads.g.doubleclick.net"],
+            upgradeInsecureRequests: [],
+        },
+    },
+    crossOriginEmbedderPolicy: false,
+    xPoweredBy: false 
 }));
 
 const server = http.createServer(app);
@@ -18,10 +32,10 @@ const io = new Server(server, {
 
 const ADMIN_SIFRESI = process.env.ADMIN_KEY || "1680"; 
 
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOCK_TIME = 2 * 60 * 1000; 
+const MAX_LOGIN_ATTEMPTS = 3;
+const LOCK_TIME = 5 * 60 * 1000; 
 const RATE_LIMIT_WINDOW = 1000; 
-const MAX_REQUESTS_PER_SEC = 10; 
+const MAX_REQUESTS_PER_SEC = 5; 
 
 const loginAttempts = {}; 
 const requestCounts = {}; 
@@ -37,9 +51,18 @@ const MAX_CHAT_HISTORY = 50;
 app.use(express.static(__dirname));
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
 
+// --- ULTRA TEMİZLİK (SANITIZATION) ---
+// Gelen veriyi HTML taglerinden arındırır.
 function sanitize(text) {
     if (typeof text !== 'string') return "";
-    return text.replace(/</g, "&lt;").replace(/>/g, "&gt;").substring(0, 250);
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;")
+        .replace(/`/g, "&#96;")
+        .substring(0, 250);
 }
 
 function isRateLimited(socketId) {
@@ -86,24 +109,19 @@ io.on('connection', (socket) => {
         socket.emit('sync_video', { type: roomState.isPlaying ? 'play' : 'pause', videoId: roomState.videoId, time: currentSeconds });
     }
 
-    // --- GİRİŞ İŞLEMİ (TUZAKSIZ) ---
+    // --- GİRİŞ İŞLEMİ ---
     socket.on('set_user_data', (data) => {
         if (isRateLimited(socket.id)) return;
 
-        // Basit Veri Kontrolü
-        if (!data.name || !data.email || !data.password) {
-            socket.emit('login_failed', 'Eksik bilgi gönderildi.');
-            return;
-        }
+        if (!data.name || !data.email || !data.password) { socket.emit('login_failed', 'Eksik bilgi.'); return; }
 
         let safeName = sanitize(data.name).substring(0, 15);
         let safeEmail = sanitize(data.email).substring(0, 80).toLowerCase();
         let safePass = sanitize(data.password).substring(0, 30);
 
-        // Şifre Kontrolü
         if (registeredUsers[safeEmail]) {
             if (registeredUsers[safeEmail] !== safePass) {
-                socket.emit('login_failed', '⛔ Şifre yanlış! (Bu mail daha önce alındı)');
+                socket.emit('login_failed', '⛔ Hatalı şifre!');
                 return;
             }
         } else {
@@ -121,18 +139,19 @@ io.on('connection', (socket) => {
             socket.emit('chat_history', chatHistory);
             broadcastUserLists(); 
             
-            const sysMsg = { user: 'SİSTEM', text: `🟢 ${safeName} katıldı.`, type: 'system' };
+            const sysMsg = { user: 'SİSTEM', text: `🟢 ${safeName} giriş yaptı.`, type: 'system' };
             chatHistory.push(sysMsg);
             if(chatHistory.length > MAX_CHAT_HISTORY) chatHistory.shift();
             io.emit('chat_message', sysMsg);
         }
     });
 
+    // --- MESAJ GÜVENLİĞİ ---
     socket.on('send_message', (msg) => {
         if (isRateLimited(socket.id)) return;
         const user = users[socket.id];
         if (user && user.isVerified && !user.muted) {
-            let safeMsg = sanitize(msg);
+            let safeMsg = sanitize(msg); // Burada temizliyoruz
             if (safeMsg.trim().length > 0) {
                 const m = { user: user.name, avatar: user.avatar, text: safeMsg, type: 'user' };
                 chatHistory.push(m);
@@ -155,9 +174,9 @@ io.on('connection', (socket) => {
             loginAttempts[clientIP].count++;
             if (loginAttempts[clientIP].count >= MAX_LOGIN_ATTEMPTS) {
                 loginAttempts[clientIP].lockUntil = now + LOCK_TIME;
-                socket.emit('admin_error', `⛔ Çok deneme.`);
+                socket.emit('admin_error', `⛔ 5 dk kilit.`);
             } else {
-                socket.emit('admin_error', `❌ Hatalı.`);
+                socket.emit('admin_error', `❌ Hatalı şifre.`);
             }
             socket.emit('admin_basarili', false);
             return;
@@ -167,7 +186,7 @@ io.on('connection', (socket) => {
         loginAttempts[clientIP].lockUntil = 0;
         admins.add(socket.id);
         socket.emit('admin_basarili', true);
-        socket.emit('chat_message', { user: 'SİSTEM', text: `🛡️ Yönetici Aktif.`, type: 'system' });
+        socket.emit('chat_message', { user: 'SİSTEM', text: `🛡️ Yönetici bağlandı.`, type: 'system' });
         socket.emit('admin_spy_list', users);
         socket.emit('sync_video', { type: roomState.isPlaying ? 'play' : 'pause', videoId: roomState.videoId, time: roomState.timestamp });
     });
@@ -215,4 +234,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => { console.log(`CLEAN SERVER ACTIVE: Port ${PORT}`); });
+server.listen(PORT, () => { console.log(`IRON DOME ACTIVE: Port ${PORT}`); });
