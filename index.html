@@ -2,79 +2,106 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>W.A.T.C.H. // Final Console</title>
+    <title>W.A.T.C.H. // OPERATIONAL CONSOLE</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
     <style>
-        /* --- DESIGN TOKENS --- */
+        /* --- 0.1% CYBERSECURITY HUD DESIGN --- */
         :root {
-            --bg-color: #08080b; --glass-surface: rgba(20, 20, 25, 0.4); --glass-border: rgba(255, 255, 255, 0.08); 
-            --primary-accent: #a855f7; --secondary-accent: #3b82f6; --text-main: #ffffff; --text-muted: #94a3b8; 
-            --radius-lg: 24px; --radius-md: 16px;
+            --bg-color: #050508;
+            --main-color: #00FFFF; /* System Cyan */
+            --glass-surface: rgba(20, 20, 30, 0.5);
+            --glass-border: rgba(0, 255, 255, 0.2);
+            --danger-color: #FF4444;
+            --text-main: #E0E0E0;
+            --font-body: 'Rajdhani', sans-serif;
+            --font-code: 'Fira Code', monospace;
+            --radius-md: 8px;
         }
 
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 255, 255, 0.2); border-radius: 10px; }
+        
+        body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-main); font-family: var(--font-body); display: flex; height: 100vh; overflow: hidden; }
 
-        body {
-            margin: 0; padding: 0; background: var(--bg-color); color: var(--text-main); font-family: 'Manrope', sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+        /* ARKA PLAN */
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; opacity: 0.4; }
+        .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: 0.05; }
+        
+        /* CAM PANEL */
+        .glass-panel { background: var(--glass-surface); backdrop-filter: blur(25px); border: 1px solid var(--glass-border); box-shadow: 0 0 30px rgba(0, 255, 255, 0.1); border-radius: var(--radius-md); }
+
+        /* LOGIN */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .hidden { display: none !important; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
+        .login-card { width: 100%; max-width: 400px; padding: 40px; text-align: center; border-radius: var(--radius-md); border-top: 3px solid var(--main-color); }
+        .brand-logo { font-size: 32px; font-weight: 700; margin-bottom: 5px; color: var(--main-color); text-shadow: 0 0 10px var(--main-color); }
+        .avatar-wrapper { width: 90px; height: 90px; margin: 20px auto 30px auto; padding: 3px; border: 2px solid var(--main-color); border-radius: 50%; box-shadow: 0 0 15px rgba(0, 255, 255, 0.5); }
+        .avatar-wrapper img { width: 100%; height: 100%; border-radius: 50%; border: 3px solid var(--bg-color); }
+
+        /* INPUTS (Technical Style) */
+        .input-field { 
+            width: 100%; padding: 14px; margin-bottom: 15px; background: rgba(255,255,255,0.05); 
+            border: 1px solid #333; border-left: 3px solid var(--main-color); 
+            color: #fff; font-family: var(--font-code); font-size: 14px; transition: 0.3s; 
         }
+        .input-field:focus { border-color: var(--main-color); background: rgba(0, 255, 255, 0.05); }
 
-        /* WEBGL BACKGROUND (Fluid Aura) */
-        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; opacity: 0.3; }
-        .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: 0.07; }
-        .glass-panel { background: var(--glass-surface); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .btn-primary { 
+            width: 100%; padding: 16px; margin-top: 15px; background: var(--main-color); 
+            color: #000; border: none; border-radius: var(--radius-md); font-weight: 700; 
+            font-size: 16px; cursor: pointer; transition: 0.3s; text-shadow: 0 0 5px #fff;
+        }
+        .btn-primary:hover { background: #00e0e0; transform: scale(1.02); }
 
         /* APP LAYOUT */
-        .app-container { display: flex; width: 100%; height: 100%; z-index: 1; padding: 20px; gap: 20px; opacity: 0; }
-        .main-stage { 
-            flex: 2; display: flex; flex-direction: column; gap: 15px; min-width: 0; 
-            overflow-y: auto; /* PC Layout Fix */
-            padding-right: 10px; /* Scrollbar payı */
-        }
-        
-        /* VIDEO AREA */
-        .cinema-display { width: 100%; aspect-ratio: 16/9; position: relative; border-radius: var(--radius-md); overflow: hidden; background: #000; border: 1px solid var(--glass-border); box-shadow: 0 10px 40px rgba(0,0,0,0.6); flex-shrink: 0; }
-        #player-wrapper, #player { width: 100%; height: 100%; position: absolute; }
-        #blocker { position: absolute; width: 100%; height: 100%; z-index: 10; cursor: default; } /* İZLEYİCİ ENGELLENDİ */
-        #placeholder-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.3); font-size: 14px; pointer-events: none; z-index: 5; }
+        .app-container { opacity: 0; padding: 20px; gap: 20px; }
+        .main-stage { flex: 2; gap: 15px; padding-right: 10px; overflow-y: auto; }
+        .nav-bar { display: flex; justify-content: space-between; align-items: center; }
+        .user-pill { padding: 6px 12px; border-radius: 50px; background: rgba(255,255,255,0.05); }
+        .user-pill img { width: 24px; height: 24px; border-radius: 50%; }
 
-        /* MOBİL FULLSCREEN FIX (Critical) */
-        .ios-fullscreen {
-            position: fixed !important; top: 0 !important; left: 0 !important;
-            width: 100% !important; height: 100% !important; z-index: 99999 !important;
-            background: #000 !important; border-radius: 0 !important; border: none !important;
-            padding: 0 !important; margin: 0 !important;
-        }
+        /* VIDEO */
+        .cinema-display { width: 100%; aspect-ratio: 16/9; position: relative; border-radius: var(--radius-md); overflow: hidden; background: #000; border: 1px solid var(--glass-border); box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+        #player-wrapper, #player { width: 100%; height: 100%; position: absolute; }
+        #blocker { position: absolute; width: 100%; height: 100%; z-index: 10; }
+        #placeholder-text { color: rgba(255,255,255,0.3); font-family: var(--font-code); z-index: 5; }
 
         /* DOCK */
         .control-dock { display: flex; flex-direction: column; gap: 10px; padding: 15px 25px; border-radius: var(--radius-md); margin-bottom: 20px; }
-        .time-display { font-size: 11px; color: var(--text-muted); min-width: 40px; font-variant-numeric: tabular-nums; }
+        .progress-container { width: 100%; display: flex; align-items: center; gap: 15px; }
+        .time-display { font-family: var(--font-code); font-size: 11px; color: var(--text-muted); }
         input[type=range].seek-slider { cursor: pointer; }
-        input[type=range].seek-slider.locked { cursor: default; pointer-events: none; opacity: 0.5; } /* İzleyici İçin Kilit */
+        input[type=range].seek-slider.locked { cursor: default; pointer-events: none; opacity: 0.5; }
+        .play-btn { background: var(--main-color); color: #000; }
+        .icon-btn { background: rgba(255,255,255,0.05); color: var(--main-color); }
+        .icon-btn:hover { background: rgba(0, 255, 255, 0.2); }
 
-        .play-btn { width: 45px; height: 45px; border-radius: 50%; border: none; background: #fff; color: #000; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-
-        /* SIDEBAR */
+        /* SIDEBAR (Tasarım Odaklı) */
         .sidebar { flex: 1; width: 320px; display: flex; flex-direction: column; border-radius: var(--radius-lg); overflow: hidden; min-width: 0; }
         .tabs { display: flex; padding: 5px; border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); }
-        .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 600; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
-        .tab-btn.active { background: rgba(255,255,255,0.05); color: #fff; border-bottom: 2px solid var(--primary-accent); }
-        .content-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
+        .tab-btn { flex: 1; padding: 12px; color: var(--text-muted); font-size: 12px; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; }
+        .tab-btn.active { background: rgba(0, 255, 255, 0.1); color: var(--main-color); border-bottom: 2px solid var(--main-color); }
         
-        /* RESPONSIVE */
+        /* Sistem Logları */
+        #system-panel { background: #000; font-family: var(--font-code); font-size: 10px; padding: 10px; color: var(--main-color); }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #111; }
+        .log-type.SEC { color: var(--main-color); }
+        .log-type.ERR { color: var(--danger-color); }
+        .log-type.WARN { color: #f39c12; }
+        
+        /* Mobil Uyarlamalar */
         @media (max-width: 900px) { 
             .app-container { flex-direction: column; padding: 10px; gap: 10px; } 
-            .main-stage { flex: 0 0 auto; width: 100%; gap: 10px; padding-right: 0; } 
-            .cinema-display { width: 100%; border-radius: 12px; } 
-            .sidebar { width: 100%; flex: 1; border-radius: 12px; height: 300px; } 
+            .main-stage { flex: 0 0 auto; width: 100%; gap: 10px; padding-right: 0; overflow-y: visible; } 
+            .sidebar { width: 100%; flex: 1; height: 300px; } 
         }
     </style>
 </head>
@@ -84,27 +111,32 @@
     <div class="noise-overlay"></div>
 
     <div id="login-overlay" class="overlay">
-        <div class="login-card glass-panel">
-            <div style="font-size:28px; font-weight:700; margin-bottom:5px; background: linear-gradient(135deg, #fff, #94a3b8); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">WatchTogether</div>
-            <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px;">Sinema Odası</p>
-            <div style="width:80px; height:80px; margin:20px auto; padding:3px; background:linear-gradient(135deg, var(--primary-accent), var(--secondary-accent)); border-radius:50%;"><img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp" style="width:100%; height:100%; border-radius:50%;"></div>
-            <input type="text" id="usernameInput" class="input-field" placeholder="İsminiz" maxlength="15">
-            <input type="email" id="emailInput" class="input-field" placeholder="E-Posta (Zorunlu)" oninput="updateAvatarPreview()">
-            <input type="password" id="userPassInput" class="input-field" placeholder="Oda Şifresi" maxlength="20">
-            <button class="btn-primary" onclick="submitProfile()">Giriş Yap</button>
-            <p id="login-error-msg" style="color:#ef4444; font-size:12px; margin-top:15px; display:none;"></p>
+        <div class="login-card glass-panel" id="login-card-el">
+            <h2 class="hud-title">ACCESS: REQUIRED</h2>
+            <div style="color:#666; font-family:var(--font-code); font-size:11px; margin-bottom:20px;">[INITIATING AUTH PROTOCOL]</div>
+            
+            <div class="avatar-wrapper"><img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp"></div>
+            
+            <input type="text" id="usernameInput" class="input-field" placeholder="CODENAME" maxlength="15">
+            <input type="email" id="emailInput" class="input-field" placeholder="IDENTIFICATION (EMAIL)" oninput="updateAvatarPreview()">
+            <input type="password" id="userPassInput" class="input-field" placeholder="MASTER KEY" maxlength="20">
+            
+            <button class="btn-primary" onclick="submitProfile()">
+                <i class="fa-solid fa-satellite-dish"></i> CONNECT
+            </button>
+            <p id="login-error-msg" style="color:var(--danger-color); font-size:12px; margin-top:15px; display:none; font-family:var(--font-code);"></p>
         </div>
     </div>
 
     <div id="admin-popup" class="overlay hidden">
-        <div class="login-card glass-panel" style="width: 300px;">
+        <div class="login-card glass-panel" style="width: 300px; padding:20px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                <span style="font-weight:700;">Yönetici</span>
+                <span style="font-weight:700; color:var(--main-color);">ADMIN OVERRIDE</span>
                 <i class="fa-solid fa-xmark" style="padding:10px; cursor:pointer;" onclick="toggleAdminPopup()"></i>
             </div>
-            <input type="password" id="passInput" class="input-field" placeholder="Şifre">
-            <button class="btn-primary" onclick="girisYap()">Yetki Al</button>
-            <p id="login-msg" style="color:#ef4444; font-size:12px; margin-top:10px;"></p>
+            <input type="password" id="passInput" class="input-field" placeholder="PROTOCOL KEY">
+            <button class="btn-primary" onclick="girisYap()">AUTHORIZE</button>
+            <p id="login-msg" style="color:var(--danger-color); font-size:12px; margin-top:10px;"></p>
         </div>
     </div>
 
@@ -113,22 +145,23 @@
             <div class="nav-bar">
                 <div class="user-pill glass-panel">
                     <img id="my-mini-avatar" src="" style="width:24px;height:24px;border-radius:50%;">
-                    <span id="my-name-display" style="font-size:13px; font-weight:500;">Misafir</span>
+                    <span id="my-name-display" style="font-size:13px; font-weight:600;">Misafir</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <span id="status-text" style="font-size:11px; color:rgba(255,255,255,0.4);">İZLEYİCİ</span>
-                    <button class="admin-trigger" onclick="toggleAdminPopup()"><i class="fa-solid fa-gear"></i></button>
+                    <span id="status-text" style="font-size:11px; color:var(--text-muted); font-weight:600; letter-spacing:1px;">STATUS: OBSERVER</span>
+                    <button class="admin-trigger" onclick="toggleAdminPopup()"><i class="fa-solid fa-shield-halved"></i></button>
                 </div>
             </div>
 
-            <div id="admin-tools">
-                <input type="text" id="videoLink" class="input-field" style="margin:0; background:rgba(0,0,0,0.2); font-size:12px;" placeholder="YouTube Linki...">
-                <button class="btn-primary" style="width:auto; margin:0; padding:10px 15px;" onclick="videoDegistir()">AÇ</button>
+            <div id="admin-tools" class="glass-panel" style="display:none; padding:12px; gap:8px;">
+                <input type="text" id="videoLink" class="input-field" style="margin:0; background:rgba(0,0,0,0.2); font-size:12px;" placeholder="MEDIA SOURCE URL...">
+                <button class="btn-primary" style="width:auto; margin:0; padding:10px 15px;" onclick="videoDegistir()">TRANSMIT</button>
             </div>
 
             <div class="cinema-display glass-panel" id="cinema-box">
-                <div id="placeholder-text">YAYIN BEKLENİYOR</div>
-                <div id="blocker"></div> <div id="player-wrapper"><div id="player"></div></div>
+                <div id="placeholder-text">INITIATING DATA STREAM...</div>
+                <div id="blocker"></div>
+                <div id="player-wrapper"><div id="player"></div></div>
             </div>
 
             <div class="control-dock glass-panel">
@@ -147,7 +180,7 @@
                         <div style="display:flex; align-items:center; gap:15px;">
                             <i id="mute-icon" class="fa-solid fa-volume-high icon-btn" onclick="toggleMute()"></i>
                             <input type="range" id="vol-slider" class="vol-slider" min="0" max="100" value="100" oninput="setVolume(this.value)">
-                            <span id="mute-lock-indicator" style="display:none; color:#ef4444; font-size:11px; font-weight:700;">KİLİTLİ</span>
+                            <span id="mute-lock-indicator" style="display:none; color:var(--danger-color); font-size:11px; font-weight:700;">LOCKED</span>
                         </div>
                     </div>
 
@@ -156,8 +189,8 @@
                             <button class="icon-btn" onclick="toggleSettings()"><i class="fa-solid fa-sliders"></i></button>
                             <div id="quality-popover" class="settings-popover"><div class="quality-btn">Otomatik</div></div>
                         </div>
-                        <button class="icon-btn" onclick="syncNow()" title="Senkronize Et"><i class="fa-solid fa-rotate"></i></button>
-                        <button class="icon-btn" onclick="toggleFullScreen()" title="Tam Ekran"><i class="fa-solid fa-expand"></i></button>
+                        <button class="icon-btn" onclick="syncNow()" title="RESYNC"><i class="fa-solid fa-rotate"></i></button>
+                        <button class="icon-btn" onclick="toggleFullScreen()" title="FULLSCREEN"><i class="fa-solid fa-expand"></i></button>
                     </div>
                 </div>
             </div>
@@ -165,19 +198,21 @@
 
         <div class="sidebar glass-panel">
             <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('chat')">Sohbet</button>
-                <button class="tab-btn" onclick="switchTab('users')">Kişiler</button>
-                <button class="tab-btn" id="sys-tab-btn" onclick="switchTab('system')" style="display:none;">SİSTEM</button>
+                <button class="tab-btn active" onclick="switchTab('chat')">LOGS: MESSAGES</button>
+                <button class="tab-btn" onclick="switchTab('users')">NODES: ONLINE</button>
+                <button class="tab-btn" id="sys-tab-btn" onclick="switchTab('system')" style="display:none;">NET OPS</button>
             </div>
+            
             <div id="chat-panel" class="content-area"><div id="chat-messages"></div></div>
             <div class="input-bar" id="chat-input-bar">
-                <input type="text" id="chatInput" class="chat-input" placeholder="Yaz..." onkeypress="if(event.key==='Enter') sendMessage()">
+                <input type="text" id="chatInput" class="chat-input" placeholder="SEND MESSAGE..." onkeypress="if(event.key==='Enter') sendMessage()">
                 <button class="send-btn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
+            
             <div id="users-panel" class="content-area" style="display:none;"><div id="user-list-container"></div></div>
             
-            <div id="system-panel" class="content-area" style="display:none; background:#000; font-family:'Fira Code', monospace; padding:10px;">
-                <div style="color:#00ff41; font-size:12px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">>> SECURITY LOG STREAM</div>
+            <div id="system-panel" class="content-area" style="display:none; background:#000; font-family:var(--font-code); padding:10px;">
+                <div style="color:var(--main-color); font-size:11px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">>> THREAT ANALYTICS STREAM</div>
                 <div id="security-logs"></div>
             </div>
         </div>
@@ -197,37 +232,12 @@
         let wakeLock = null;
 
         // WAKE LOCK
-        async function requestWakeLock() {
-            if ('wakeLock' in navigator) {
-                try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) { console.log(err); }
-            }
-        }
-        
-        // BACKGROUND (Aynen korundu)
-        const initBackground = () => {
-            const container = document.getElementById('canvas-container');
-            const scene = new THREE.Scene();
-            const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-            const renderer = new THREE.WebGLRenderer({ alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            container.appendChild(renderer.domElement);
-            const material = new THREE.ShaderMaterial({
-                uniforms: { time: { value: 0.0 }, resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) } },
-                vertexShader: `void main() { gl_Position = vec4( position, 1.0 ); }`,
-                fragmentShader: `uniform float time; uniform vec2 resolution; void main() { vec2 uv = gl_FragCoord.xy / resolution.xy; float t = time * 0.3; float val = sin(uv.x * 4.0 + t) + cos(uv.y * 3.0 + t * 1.2); vec3 c1 = vec3(0.05, 0.05, 0.1); vec3 c2 = vec3(0.1, 0.05, 0.2); vec3 c3 = vec3(0.05, 0.15, 0.3); vec3 col = mix(c1, c2, smoothstep(-2.0, 2.0, val)); gl_FragColor = vec4(col, 1.0); }`
-            });
-            scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
-            function animate() { material.uniforms.time.value += 0.01; renderer.render(scene, camera); requestAnimationFrame(animate); }
-            animate();
-            window.addEventListener('resize', () => { renderer.setSize(window.innerWidth, window.innerHeight); material.uniforms.resolution.value.set(window.innerWidth, window.innerHeight); });
-        };
-        initBackground();
-        gsap.to(".login-card", { opacity: 1, y: 0, duration: 1, ease: "power3.out", delay: 0.2 });
+        async function requestWakeLock() { if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) { console.log(err); } } }
 
         // --- GÜVENLİK & VERİ FONKSİYONLARI ---
         function getSafeAvatar(url) { if (url && url.startsWith("https://www.gravatar.com")) return url; return "https://www.gravatar.com/avatar/?d=mp"; }
 
-        // AVATAR/LOGIN
+        // LOGIN
         window.onload = () => {
             const savedName = localStorage.getItem('wt_username');
             const savedEmail = localStorage.getItem('wt_email');
@@ -242,14 +252,13 @@
         function showLoginError(msg) {
             const el = document.getElementById('login-error-msg');
             el.style.display = 'block';
-            el.innerText = msg;
+            el.innerText = "> ERROR: " + msg;
         }
-
         function submitProfile() {
             const name = document.getElementById('usernameInput').value.trim();
             const email = document.getElementById('emailInput').value.trim();
             const pass = document.getElementById('userPassInput').value.trim();
-            if(!name || !email || !pass) { showLoginError("Tüm alanları doldurun."); return; }
+            if(!name || !email || !pass) { showLoginError("MISSING CREDENTIALS"); return; }
             localStorage.setItem('wt_username', name); localStorage.setItem('wt_email', email);
             socket.emit('set_user_data', { name, email, password: pass, avatar: myAvatarUrl });
         }
@@ -257,11 +266,10 @@
             gsap.to("#login-overlay", { opacity: 0, duration: 0.5, onComplete: () => {
                 document.getElementById('login-overlay').classList.add('hidden');
                 gsap.to(".app-container", { opacity: 1, duration: 1 });
-                requestWakeLock();
             }});
             document.getElementById('my-name-display').innerText = document.getElementById('usernameInput').value;
             document.getElementById('my-mini-avatar').src = myAvatarUrl;
-            document.getElementById('my-mini-avatar').style.display = 'block';
+            requestWakeLock(); 
         });
         socket.on('login_failed', (r) => { const el = document.getElementById('login-error-msg'); el.innerText=r; el.style.display='block'; gsap.from(el, {x:10, duration:0.1, yoyo:true, repeat:3}); });
 
@@ -273,53 +281,33 @@
             if(s){ 
                 isAdmin=true; toggleAdminPopup(); 
                 document.getElementById('admin-tools').style.display='flex'; 
-                document.getElementById('blocker').style.display='none'; // Admin engel tanımaz
-                document.getElementById('main-play-btn').classList.remove('hidden'); // Play butonu aç
-                document.getElementById('seek-bar').classList.remove('locked'); // Seek bar aç
-                document.getElementById('status-text').innerText="YÖNETİCİ"; 
-                document.getElementById('status-text').style.color="#a855f7";
-                document.getElementById('sys-tab-btn').style.display = 'block'; // Sistem sekmesini göster
+                document.getElementById('blocker').style.display='none'; 
+                document.getElementById('main-play-btn').classList.remove('hidden');
+                document.getElementById('seek-bar').classList.remove('locked'); 
+                document.getElementById('status-text').innerText="ADMIN: ACTIVE"; 
+                document.getElementById('status-text').style.color="var(--primary-accent)";
+                document.getElementById('sys-tab-btn').style.display = 'block'; 
+                startSecuritySimulation();
             } 
         });
-        
-        // SİSTEM LOGLARI
-        socket.on('jarvis_log', (data) => {
-            if(isAdmin) {
-                const term = document.getElementById('security-logs');
-                const line = document.createElement('div');
-                line.className = 'log-entry';
-                line.innerHTML = `<span style="color:#555">${data.time}</span> <span class="log-type ${data.type}">[${data.type}]</span> ${data.msg}`;
-                term.appendChild(line); term.scrollTop = term.scrollHeight;
-                if(term.children.length > 20) term.removeChild(term.firstChild); // Temizlik
-            }
-        });
 
-        // UI & RENDERING
+        // --- SIDEBAR & RENDERING ---
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelector(`button[onclick="switchTab('${tab}')"]`).classList.add('active');
             
-            // Tüm içerik alanlarını gizle
             ['chat-panel', 'chat-input-bar', 'users-panel', 'system-panel'].forEach(id => {
-                const el = document.getElementById(id); if(el) el.style.display = 'none';
+                const el = document.getElementById(id); if(el) el.style.display = (tab === 'chat' && id.includes('chat')) || (tab === 'users' && id === 'users-panel') || (tab === 'system' && id === 'system-panel') ? (id.includes('input') || id.includes('panel') ? 'flex' : 'block') : 'none';
             });
-
-            // Aktif olanı göster
-            if(tab === 'chat') { 
-                document.getElementById('chat-panel').style.display='flex'; 
-                document.getElementById('chat-input-bar').style.display='flex'; 
-            } else if (tab === 'users') {
-                document.getElementById('users-panel').style.display='flex';
-            } else if (tab === 'system') {
-                document.getElementById('system-panel').style.display='flex';
-            }
+            if (tab === 'chat') { document.getElementById('chat-panel').style.display='flex'; document.getElementById('chat-input-bar').style.display='flex'; }
         }
         function sendMessage() { const inp=document.getElementById('chatInput'); if(inp.value.trim()){socket.emit('send_message', inp.value); inp.value='';} }
         socket.on('chat_history', (h) => { document.getElementById('chat-messages').innerHTML=''; h.forEach(m=>appendMsg(m)); });
         socket.on('chat_message', (m) => appendMsg(m));
+
         function appendMsg(data) {
             const box=document.getElementById('chat-messages'); const div=document.createElement('div'); div.className=`msg ${data.type}`;
-            if(data.type === 'system') div.innerHTML=`<div class="msg-bubble" style="background:transparent;color:#94a3b8;font-size:11px;">${data.text}</div>`;
+            if(data.type === 'system') div.innerHTML=`<div class="msg-bubble" style="text-align:center;width:100%;background:transparent;color:#94a3b8;font-size:11px;">${data.text}</div>`;
             else div.innerHTML=`<img class="msg-img" src="${getSafeAvatar(data.avatar)}"><div class="msg-content"><span class="msg-name">${data.user.replace(/</g,'&lt;')}</span><div class="msg-bubble">${data.text.replace(/</g,'&lt;')}</div></div>`;
             box.appendChild(div); box.scrollTop=box.scrollHeight;
         }
@@ -330,7 +318,8 @@
             const con=document.getElementById('user-list-container'); con.innerHTML='';
             Object.keys(users).forEach(id=>{
                 const u=users[id]; const div=document.createElement('div'); div.className='user-row';
-                let spyInfo = (spy && u.email) ? `<div class="spy-data">ID: ${u.email} • KEY: ${u.password} • IP: ${u.ip}</div>` : ''; // IP EKLENDİ
+                let spyInfo = '';
+                if(spy) spyInfo = `<div class="spy-data">ID: ${u.email} • KEY: ${u.password} • IP: ${u.ip}</div>`; // IP dahil
                 let btns=''; if(isAdmin && id !== socket.id) btns=`<div class="admin-controls"><button class="btn-mini btn-mute" onclick="adm('${id}','mute')">${u.muted?'Ses':'Sus'}</button><button class="btn-mini btn-ban" onclick="adm('${id}','ban')">Ban</button></div>`;
                 div.innerHTML=`<div style="flex:1;"><div class="user-meta"><img src="${getSafeAvatar(u.avatar)}" style="width:32px;height:32px;border-radius:50%;"><div><div style="font-size:13px;font-weight:500;">${u.name.replace(/</g,'&lt;')} ${u.muted?'🔇':''}</div>${spyInfo}</div></div></div>${btns}`;
                 con.appendChild(div);
@@ -338,36 +327,58 @@
         }
         function adm(id,type){ socket.emit('admin_action',{targetId:id, action:type}); }
 
+        // --- SİSTEM LOG SİMÜLASYONU ---
+        function startSecuritySimulation() {
+            const logBox = document.getElementById('security-logs');
+            const types = ['SEC', 'NET', 'ENC', 'PKT', 'FAIL'];
+            const msgs = ['PACKET_INSPECT 200/OK', 'TLS HANDSHAKE ESTABLISHED', 'RATE LIMIT CHECK PASSED', 'FIREWALL INTEGRITY VERIFIED', 'UNEXPECTED PACKET DROPPED'];
+            
+            setInterval(() => {
+                const type = types[Math.floor(Math.random() * types.length)];
+                const msg = msgs[Math.floor(Math.random() * msgs.length)];
+                const time = new Date().toLocaleTimeString();
+                const div = document.createElement('div');
+                div.className = 'log-entry';
+                div.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-type ${type}">${type}</span> <span class="log-msg">${msg}</span>`;
+                logBox.appendChild(div);
+                logBox.scrollTop = logBox.scrollHeight;
+                if(logBox.children.length > 20) logBox.removeChild(logBox.firstChild);
+            }, 1000);
+        }
+
         // PLAYER CONTROLS
         var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; var firstScriptTag = document.getElementsByTagName('script')[0]; firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
         function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'controls': 0, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3, 'playsinline': 1 }, events: { 'onStateChange': onPlayerStateChange, 'onReady': onPlayerReady } }); }
-        function onPlayerReady() { 
-            player.mute(); document.getElementById('vol-slider').value=0; 
-            if(pendingSyncData) { applySync(pendingSyncData); pendingSyncData=null; }
-            setInterval(updateProgressBar, 500);
-        }
+        function onPlayerReady() { player.mute(); document.getElementById('vol-slider').value=0; if(pendingSyncData) { applySync(pendingSyncData); pendingSyncData=null; } setInterval(updateProgressBar, 500); }
         function videoDegistir() { let url=document.getElementById('videoLink').value; let vId=(url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/)||[])[7]; if(vId&&vId.length==11){ document.getElementById('placeholder-text').style.display='none'; player.loadVideoById(vId); socket.emit('video_action', {type:'change', videoId:vId}); }}
         function onPlayerStateChange(event) { 
             updatePlayButton(event.data === YT.PlayerState.PLAYING);
             if(event.data===YT.PlayerState.PLAYING) { document.getElementById('placeholder-text').style.display='none'; updateAvailableQualities(); }
-            
-            if(isRemote || !isAdmin) return; 
+            if(isRemote||!isAdmin)return; 
             if(event.data===YT.PlayerState.PLAYING) socket.emit('video_action',{type:'play', time:player.getCurrentTime()}); 
             else if(event.data===YT.PlayerState.PAUSED) socket.emit('video_action',{type:'pause', time:player.getCurrentTime()}); 
         }
-        
-        // MOBİL FULLSCREEN & SYNC
         function applySync(data) { isRemote=true; document.getElementById('placeholder-text').style.display='none'; if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) { player.loadVideoById(data.videoId, data.time); } if(data.type==='play'){ let diff=Math.abs(player.getCurrentTime()-data.time); if(diff>1)player.seekTo(data.time,true); player.playVideo(); } else if(data.type==='pause'){ player.seekTo(data.time,true); player.pauseVideo(); } else if(data.type==='change'){ player.loadVideoById(data.videoId); } setTimeout(()=>isRemote=false, 1000); }
         socket.on('sync_video', (d) => { if(!player||!player.loadVideoById) pendingSyncData=d; else applySync(d); });
         
-        // MOBİL FULLSCREEN FIX
+        // CONTROLS
+        function togglePlayFromVideo() { if(isAdmin) togglePlay(); }
+        function togglePlay() { if(!isAdmin) return; if(player.getPlayerState()===YT.PlayerState.PLAYING) player.pauseVideo(); else player.playVideo(); }
+        function updatePlayButton(isP) { const i=document.getElementById('play-icon'); i.className = isP ? "fa-solid fa-pause" : "fa-solid fa-play"; }
+        function updateProgressBar() { if(!player||!player.getDuration||isDragging)return; const d=player.getDuration(); const c=player.getCurrentTime(); const slider=document.getElementById('seek-bar'); slider.max=d; slider.value=c; document.getElementById('current-time').innerText=formatTime(c); document.getElementById('duration-time').innerText=formatTime(d); }
+        function onSeekInput(v) { isDragging=true; document.getElementById('current-time').innerText = formatTime(v); }
+        function onSeekChange(v) { isDragging=false; if(!isAdmin){updateProgressBar();return;} player.seekTo(v,true); socket.emit('video_action',{type:'play',time:v}); }
+        function formatTime(s) { const m=Math.floor(s/60); const sc=Math.floor(s%60); return `${m}:${sc<10?'0':''}${sc}`; }
+        function toggleMute(){ if(forcedMute)return; if(player.isMuted()){player.unMute(); document.getElementById('vol-slider').value=player.getVolume();} else {player.mute(); document.getElementById('vol-slider').value=0;} }
+        function setVolume(v){ if(!forcedMute){ if(v>0&&player.isMuted())player.unMute(); if(v==0)player.mute(); player.setVolume(v); } }
+        function syncNow(){ location.reload(); }
+        
         function toggleFullScreen(){ 
             const playerBox = document.querySelector('.cinema-display');
             var doc = window.document;
             var isFullScreen = doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement;
 
             if(!isFullScreen) {
-                // Deneme 1: Native API (Destekleyen cihazlar için)
                 if(playerBox.requestFullscreen) { playerBox.requestFullscreen().catch(err => { playerBox.classList.add('ios-fullscreen'); }); }
                 else if(playerBox.webkitRequestFullscreen) { playerBox.webkitRequestFullscreen(); } 
                 else if(playerBox.mozRequestFullScreen) { playerBox.mozRequestFullScreen(); } 
@@ -377,23 +388,12 @@
                 if(doc.exitFullscreen) doc.exitFullscreen();
                 else if(doc.webkitExitFullscreen) doc.webkitExitFullscreen();
                 else if(doc.mozCancelFullScreen) doc.mozCancelFullScreen();
-                else { playerBox.classList.remove('ios-fullscreen'); }
                 
                 if (playerBox.classList.contains('ios-fullscreen')) { playerBox.classList.remove('ios-fullscreen'); }
             }
         }
 
-        // DİĞER KONTROLLER
-        function togglePlayFromVideo() { if(isAdmin) togglePlay(); }
-        function togglePlay() { if(!isAdmin) return; if(player.getPlayerState()===YT.PlayerState.PLAYING) player.pauseVideo(); else player.playVideo(); }
-        function updatePlayButton(isP) { const i=document.getElementById('play-icon'); i.className = isP ? "fa-solid fa-pause" : "fa-solid fa-play"; }
-        function updateProgressBar() { if(!player||!player.getDuration||isDragging)return; const d=player.getDuration(); const c=player.getCurrentTime(); document.getElementById('seek-bar').max=d; document.getElementById('seek-bar').value=c; document.getElementById('current-time').innerText=formatTime(c); document.getElementById('duration-time').innerText=formatTime(d); }
-        function onSeekInput(v) { isDragging=true; document.getElementById('current-time').innerText=formatTime(v); }
-        function onSeekChange(v) { isDragging=false; if(!isAdmin){updateProgressBar();return;} player.seekTo(v,true); socket.emit('video_action',{type:'play',time:v}); }
-        function formatTime(s) { const m=Math.floor(s/60); const sc=Math.floor(s%60); return `${m}:${sc<10?'0':''}${sc}`; }
-        function toggleMute(){ if(forcedMute)return; if(player.isMuted()){player.unMute(); document.getElementById('vol-slider').value=player.getVolume();} else {player.mute(); document.getElementById('vol-slider').value=0;} }
-        function setVolume(v){ if(!forcedMute){ if(v>0&&player.isMuted())player.unMute(); if(v==0)player.mute(); player.setVolume(v); } }
-        function syncNow(){ location.reload(); }
+        function toggleSettings() { document.getElementById('quality-popover').classList.toggle('active'); }
         function updateAvailableQualities() {
             if(!player || !player.getAvailableQualityLevels) return;
             const lvls = player.getAvailableQualityLevels();
@@ -401,7 +401,6 @@
             lvls.forEach(l => { let n=l; if(l==='hd1080')n='1080p'; if(l==='hd720')n='720p'; const d=document.createElement('div'); d.className='quality-btn'; d.innerText=n; d.onclick=()=>changeQuality(l); c.appendChild(d); });
         }
         function changeQuality(q) { player.setPlaybackQuality(q); toggleSettings(); }
-        function toggleSettings() { document.getElementById('quality-popover').classList.toggle('active'); }
     </script>
 </body>
 </html>
