@@ -25,7 +25,8 @@ const requestCounts = {};
 const admins = new Set();
 const users = {}; 
 const bannedIPs = new Set(); 
-const registeredUsers = {}; 
+const registeredUsers = {}; // { 'email': 'sifre' }
+
 let roomState = { videoId: null, isPlaying: false, timestamp: 0, lastUpdate: 0 };
 const chatHistory = []; 
 const MAX_CHAT_HISTORY = 50; 
@@ -33,9 +34,10 @@ const MAX_CHAT_HISTORY = 50;
 app.use(express.static(__dirname));
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
 
+// XSS KORUMASI: Gelen veriyi nötralize eder
 function sanitize(text) {
     if (typeof text !== 'string') return "";
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").substring(0, 250);
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;").substring(0, 250);
 }
 
 function isRateLimited(socketId) {
@@ -63,7 +65,7 @@ io.on('connection', (socket) => {
 
     if (bannedIPs.has(clientIP)) { socket.disconnect(true); return; }
 
-    // --- KESİN IP ENGELİ (KICK OLD SESSION) ---
+    // IP ÇAKIŞMA KONTROLÜ (KICK OLD SESSION)
     const oldSocketId = Object.keys(users).find(id => users[id].ip === clientIP);
     if (oldSocketId) {
         io.sockets.sockets.get(oldSocketId)?.disconnect(true);
@@ -73,7 +75,8 @@ io.on('connection', (socket) => {
 
     users[socket.id] = { 
         name: "Bilinmiyor", email: "-", password: "-", 
-        avatar: "https://www.gravatar.com/avatar/?d=mp", muted: false, ip: clientIP, isVerified: false 
+        avatar: "https://www.gravatar.com/avatar/?d=mp", 
+        muted: false, ip: clientIP, isVerified: false 
     };
 
     if (roomState.videoId) {
@@ -82,15 +85,17 @@ io.on('connection', (socket) => {
         socket.emit('sync_video', { type: roomState.isPlaying ? 'play' : 'pause', videoId: roomState.videoId, time: currentSeconds });
     }
 
+    // --- GİRİŞ İŞLEMİ ---
     socket.on('set_user_data', (data) => {
-        if (!data.name || !data.email || !data.password) { socket.emit('login_failed', 'Eksik bilgi.'); return; }
+        if (!data.name || !data.email || !data.password) { socket.emit('login_failed', 'Lütfen tüm alanları doldurun.'); return; }
 
         let safeName = sanitize(data.name).substring(0, 15);
         let safeEmail = sanitize(data.email).substring(0, 80).toLowerCase();
         let safePass = sanitize(data.password).substring(0, 30);
 
+        // MAİL/ŞİFRE KİLİDİ
         if (registeredUsers[safeEmail]) {
-            if (registeredUsers[safeEmail] !== safePass) { socket.emit('login_failed', '⛔ Yanlış şifre!'); return; }
+            if (registeredUsers[safeEmail] !== safePass) { socket.emit('login_failed', '⛔ Şifre yanlış!'); return; }
         } else {
             registeredUsers[safeEmail] = safePass;
         }
@@ -103,7 +108,9 @@ io.on('connection', (socket) => {
             users[socket.id].isVerified = true;
             
             socket.emit('login_success', true);
+            socket.emit('chat_history', chatHistory);
             broadcastUserLists(); 
+            
             const sysMsg = { user: 'SİSTEM', text: `🟢 ${safeName} katıldı.`, type: 'system' };
             chatHistory.push(sysMsg);
             if(chatHistory.length > MAX_CHAT_HISTORY) chatHistory.shift();
@@ -111,6 +118,7 @@ io.on('connection', (socket) => {
         }
     });
 
+    // --- MESAJ KONTROLÜ ---
     socket.on('send_message', (msg) => {
         if (isRateLimited(socket.id)) return;
         const user = users[socket.id];
@@ -138,7 +146,7 @@ io.on('connection', (socket) => {
 
         if (action === 'ban' && users[targetId]) {
             bannedIPs.add(users[targetId].ip);
-            io.to(targetId).emit('force_disconnect', 'Yasaklandı.');
+            io.to(targetId).emit('force_disconnect', 'Yasaklandınız.');
             io.sockets.sockets.get(targetId)?.disconnect(true);
             delete users[targetId];
             broadcastUserLists();
@@ -175,4 +183,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => { console.log(`FINAL PROTOCOL ACTIVE: Port ${PORT}`); });
+server.listen(PORT, () => { console.log(`IRON DOME PROTOCOL ACTIVE: Port ${PORT}`); });
