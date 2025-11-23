@@ -6,11 +6,8 @@ const helmet = require('helmet');
 
 const app = express();
 
-// --- DÜZELTME BURADA: CSP'Yİ KAPATTIK (Giriş Sorununu Çözer) ---
-app.use(helmet({
-    contentSecurityPolicy: false, 
-    crossOriginEmbedderPolicy: false
-}));
+// GÜVENLİK DUVARI (Sadeleştirilmiş Helmet)
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -19,19 +16,16 @@ const io = new Server(server, {
 
 const ADMIN_SIFRESI = process.env.ADMIN_KEY || "1680"; 
 
-// LİMİTLER (Biraz gevşettik)
-const MAX_LOGIN_ATTEMPTS = 10;
-const LOCK_TIME = 2 * 60 * 1000; // 2 Dakika ceza
-const RATE_LIMIT_WINDOW = 1000; 
-const MAX_REQUESTS_PER_SEC = 20; // Rahat kullanım için artırdık
-
+// GÜVENLİK HAFIZASI
+const MAX_LOGIN_ATTEMPTS = 3;
+const LOCK_TIME = 5 * 60 * 1000; 
+const MAX_REQUESTS_PER_SEC = 5; 
 const loginAttempts = {}; 
 const requestCounts = {}; 
 const admins = new Set();
 const users = {}; 
 const bannedIPs = new Set(); 
 const registeredUsers = {}; 
-
 let roomState = { videoId: null, isPlaying: false, timestamp: 0, lastUpdate: 0 };
 const chatHistory = []; 
 const MAX_CHAT_HISTORY = 50; 
@@ -39,24 +33,16 @@ const MAX_CHAT_HISTORY = 50;
 app.use(express.static(__dirname));
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
 
-// --- EN ÖNEMLİ KORUMA: TEMİZLİK (Bunu Sakladık) ---
-// Arkadaşının yazı yazıp siteyi bozmasını engelleyen kod bu.
 function sanitize(text) {
     if (typeof text !== 'string') return "";
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;")
-        .substring(0, 500);
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").substring(0, 250);
 }
 
 function isRateLimited(socketId) {
     const now = Date.now();
     if (!requestCounts[socketId]) { requestCounts[socketId] = { count: 1, lastReset: now }; return false; }
     const data = requestCounts[socketId];
-    if (now - data.lastReset > RATE_LIMIT_WINDOW) { data.count = 1; data.lastReset = now; return false; }
+    if (now - data.lastReset > 1000) { data.count = 1; data.lastReset = now; return false; }
     data.count++;
     return data.count > MAX_REQUESTS_PER_SEC;
 }
@@ -77,7 +63,7 @@ io.on('connection', (socket) => {
 
     if (bannedIPs.has(clientIP)) { socket.disconnect(true); return; }
 
-    // Çift Sekme Kontrolü (Eskiyi at)
+    // --- KESİN IP ENGELİ (KICK OLD SESSION) ---
     const oldSocketId = Object.keys(users).find(id => users[id].ip === clientIP);
     if (oldSocketId) {
         io.sockets.sockets.get(oldSocketId)?.disconnect(true);
@@ -86,9 +72,8 @@ io.on('connection', (socket) => {
     }
 
     users[socket.id] = { 
-        name: "Bekliyor...", email: "-", password: "-", 
-        avatar: "https://www.gravatar.com/avatar/?d=mp", 
-        muted: false, ip: clientIP, isVerified: false 
+        name: "Bilinmiyor", email: "-", password: "-", 
+        avatar: "https://www.gravatar.com/avatar/?d=mp", muted: false, ip: clientIP, isVerified: false 
     };
 
     if (roomState.videoId) {
@@ -97,25 +82,15 @@ io.on('connection', (socket) => {
         socket.emit('sync_video', { type: roomState.isPlaying ? 'play' : 'pause', videoId: roomState.videoId, time: currentSeconds });
     }
 
-    // --- GİRİŞ İŞLEMİ ---
     socket.on('set_user_data', (data) => {
-        // Rate limit burada kontrol edilmiyor ki giriş yapabilsin
-        
-        if (!data.name || !data.email || !data.password || !data.name.trim()) {
-            socket.emit('login_failed', 'Lütfen tüm alanları doldur.');
-            return;
-        }
+        if (!data.name || !data.email || !data.password) { socket.emit('login_failed', 'Eksik bilgi.'); return; }
 
         let safeName = sanitize(data.name).substring(0, 15);
         let safeEmail = sanitize(data.email).substring(0, 80).toLowerCase();
         let safePass = sanitize(data.password).substring(0, 30);
 
-        // Şifre Kontrolü
         if (registeredUsers[safeEmail]) {
-            if (registeredUsers[safeEmail] !== safePass) {
-                socket.emit('login_failed', '⛔ Şifre yanlış (Mail kayıtlı).');
-                return;
-            }
+            if (registeredUsers[safeEmail] !== safePass) { socket.emit('login_failed', '⛔ Yanlış şifre!'); return; }
         } else {
             registeredUsers[safeEmail] = safePass;
         }
@@ -128,9 +103,7 @@ io.on('connection', (socket) => {
             users[socket.id].isVerified = true;
             
             socket.emit('login_success', true);
-            socket.emit('chat_history', chatHistory);
             broadcastUserLists(); 
-            
             const sysMsg = { user: 'SİSTEM', text: `🟢 ${safeName} katıldı.`, type: 'system' };
             chatHistory.push(sysMsg);
             if(chatHistory.length > MAX_CHAT_HISTORY) chatHistory.shift();
@@ -153,32 +126,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('admin_girisi', (sifre) => {
-        const now = Date.now();
-        if (!loginAttempts[clientIP]) loginAttempts[clientIP] = { count: 0, lockUntil: 0 };
-        
-        if (loginAttempts[clientIP].lockUntil > now) { 
-            socket.emit('admin_error', `⛔ Çok deneme yapıldı.`); return; 
-        }
-
-        if (typeof sifre !== 'string' || sifre !== ADMIN_SIFRESI) {
-            loginAttempts[clientIP].count++;
-            if (loginAttempts[clientIP].count >= MAX_LOGIN_ATTEMPTS) {
-                loginAttempts[clientIP].lockUntil = now + LOCK_TIME;
-                socket.emit('admin_error', `⛔ Kilitlendi.`);
-            } else {
-                socket.emit('admin_error', `❌ Yanlış.`);
-            }
-            socket.emit('admin_basarili', false);
-            return;
-        }
-
-        loginAttempts[clientIP].count = 0; 
-        loginAttempts[clientIP].lockUntil = 0;
+        if (typeof sifre !== 'string' || sifre !== ADMIN_SIFRESI) { socket.emit('admin_error', `❌ Yetki Protokolü Hatalı.`); return; }
         admins.add(socket.id);
         socket.emit('admin_basarili', true);
-        socket.emit('chat_message', { user: 'SİSTEM', text: `🛡️ Yönetici bağlandı.`, type: 'system' });
         socket.emit('admin_spy_list', users);
-        socket.emit('sync_video', { type: roomState.isPlaying ? 'play' : 'pause', videoId: roomState.videoId, time: roomState.timestamp });
     });
 
     socket.on('admin_action', (data) => {
@@ -187,11 +138,11 @@ io.on('connection', (socket) => {
 
         if (action === 'ban' && users[targetId]) {
             bannedIPs.add(users[targetId].ip);
-            io.to(targetId).emit('force_disconnect', 'Yasaklandınız.');
+            io.to(targetId).emit('force_disconnect', 'Yasaklandı.');
             io.sockets.sockets.get(targetId)?.disconnect(true);
             delete users[targetId];
             broadcastUserLists();
-            io.emit('chat_message', { user: 'SİSTEM', text: `🔴 Biri uzaklaştırıldı.`, type: 'warn' });
+            io.emit('chat_message', { user: 'SİSTEM', text: `🔴 Kullanıcı uzaklaştırıldı.`, type: 'warn' });
         } else if (action === 'mute' && users[targetId]) {
             users[targetId].muted = !users[targetId].muted;
             io.to(targetId).emit('toggle_mute_lock', users[targetId].muted);
@@ -208,7 +159,7 @@ io.on('connection', (socket) => {
             else if (data.type === 'pause') { roomState.isPlaying = false; roomState.timestamp = data.time; roomState.lastUpdate = Date.now(); }
             else if (data.type === 'change') {
                 roomState.videoId = data.videoId; roomState.timestamp = 0; roomState.isPlaying = true; roomState.lastUpdate = Date.now();
-                const msg = { user: 'SİSTEM', text: `🎬 Video değişti.`, type: 'info' };
+                const msg = { user: 'SİSTEM', text: `🎬 Medya kaynağı değişti.`, type: 'info' };
                 chatHistory.push(msg);
                 io.emit('chat_message', msg);
             }
@@ -224,4 +175,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => { console.log(`STABLE MODE ACTIVE: Port ${PORT}`); });
+server.listen(PORT, () => { console.log(`FINAL PROTOCOL ACTIVE: Port ${PORT}`); });

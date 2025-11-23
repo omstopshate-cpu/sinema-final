@@ -7,102 +7,76 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;500;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
     <style>
-        /* --- 0.1% CYBERSECURITY HUD DESIGN --- */
+        /* --- DESIGN TOKENS --- */
         :root {
-            --bg-color: #050508;
-            --main-color: #00FFFF; /* System Cyan */
-            --glass-surface: rgba(20, 20, 30, 0.5);
-            --glass-border: rgba(0, 255, 255, 0.2);
-            --danger-color: #FF4444;
-            --text-main: #E0E0E0;
-            --font-body: 'Rajdhani', sans-serif;
-            --font-code: 'Fira Code', monospace;
+            --bg-color: #050508; --glass-surface: rgba(20, 20, 25, 0.5); --glass-border: rgba(0, 255, 255, 0.2); 
+            --primary-accent: #a855f7; --secondary-accent: #3b82f6; --text-main: #E0E0E0; --text-muted: #94a3b8; 
+            --radius-lg: 16px; /* Daha modern bir köşe */
             --radius-md: 8px;
+            --main-color: #00FFFF;
         }
 
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: rgba(0, 255, 255, 0.2); border-radius: 10px; }
         
-        body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-main); font-family: var(--font-body); display: flex; height: 100vh; overflow: hidden; }
+        body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-main); font-family: 'Manrope', sans-serif; display: flex; height: 100vh; overflow: hidden; }
 
         /* ARKA PLAN */
         #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; opacity: 0.4; }
         .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: 0.05; }
         
         /* CAM PANEL */
-        .glass-panel { background: var(--glass-surface); backdrop-filter: blur(25px); border: 1px solid var(--glass-border); box-shadow: 0 0 30px rgba(0, 255, 255, 0.1); border-radius: var(--radius-md); }
+        .glass-panel { background: var(--glass-surface); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5); border-radius: var(--radius-md); }
 
-        /* LOGIN */
-        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .hidden { display: none !important; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
-        .login-card { width: 100%; max-width: 400px; padding: 40px; text-align: center; border-radius: var(--radius-md); border-top: 3px solid var(--main-color); }
-        .brand-logo { font-size: 32px; font-weight: 700; margin-bottom: 5px; color: var(--main-color); text-shadow: 0 0 10px var(--main-color); }
-        .avatar-wrapper { width: 90px; height: 90px; margin: 20px auto 30px auto; padding: 3px; border: 2px solid var(--main-color); border-radius: 50%; box-shadow: 0 0 15px rgba(0, 255, 255, 0.5); }
-        .avatar-wrapper img { width: 100%; height: 100%; border-radius: 50%; border: 3px solid var(--bg-color); }
-
-        /* INPUTS (Technical Style) */
-        .input-field { 
-            width: 100%; padding: 14px; margin-bottom: 15px; background: rgba(255,255,255,0.05); 
-            border: 1px solid #333; border-left: 3px solid var(--main-color); 
-            color: #fff; font-family: var(--font-code); font-size: 14px; transition: 0.3s; 
+        /* APP LAYOUT - ANA FIX BURADA */
+        .app-container { 
+            display: flex; width: 100%; height: 100%; z-index: 1; padding: 25px; gap: 25px; opacity: 0; 
         }
-        .input-field:focus { border-color: var(--main-color); background: rgba(0, 255, 255, 0.05); }
-
-        .btn-primary { 
-            width: 100%; padding: 16px; margin-top: 15px; background: var(--main-color); 
-            color: #000; border: none; border-radius: var(--radius-md); font-weight: 700; 
-            font-size: 16px; cursor: pointer; transition: 0.3s; text-shadow: 0 0 5px #fff;
+        .main-stage { 
+            flex: 2; display: flex; flex-direction: column; gap: 15px; min-width: 0; 
+            overflow-y: auto; /* PC Layout Fix - Scrollable */
+            padding-right: 10px; 
         }
-        .btn-primary:hover { background: #00e0e0; transform: scale(1.02); }
-
-        /* APP LAYOUT */
-        .app-container { opacity: 0; padding: 20px; gap: 20px; }
-        .main-stage { flex: 2; gap: 15px; padding-right: 10px; overflow-y: auto; }
-        .nav-bar { display: flex; justify-content: space-between; align-items: center; }
-        .user-pill { padding: 6px 12px; border-radius: 50px; background: rgba(255,255,255,0.05); }
-        .user-pill img { width: 24px; height: 24px; border-radius: 50%; }
-
-        /* VIDEO */
-        .cinema-display { width: 100%; aspect-ratio: 16/9; position: relative; border-radius: var(--radius-md); overflow: hidden; background: #000; border: 1px solid var(--glass-border); box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+        
+        /* VIDEO DISPLAY */
+        .cinema-display { width: 100%; aspect-ratio: 16/9; position: relative; border-radius: var(--radius-md); overflow: hidden; background: #000; border: 1px solid var(--glass-border); box-shadow: 0 0 30px rgba(0, 255, 255, 0.1); }
         #player-wrapper, #player { width: 100%; height: 100%; position: absolute; }
-        #blocker { position: absolute; width: 100%; height: 100%; z-index: 10; }
-        #placeholder-text { color: rgba(255,255,255,0.3); font-family: var(--font-code); z-index: 5; }
+        #blocker { position: absolute; width: 100%; height: 100%; z-index: 10; cursor: default; }
 
         /* DOCK */
         .control-dock { display: flex; flex-direction: column; gap: 10px; padding: 15px 25px; border-radius: var(--radius-md); margin-bottom: 20px; }
-        .progress-container { width: 100%; display: flex; align-items: center; gap: 15px; }
-        .time-display { font-family: var(--font-code); font-size: 11px; color: var(--text-muted); }
-        input[type=range].seek-slider { cursor: pointer; }
-        input[type=range].seek-slider.locked { cursor: default; pointer-events: none; opacity: 0.5; }
-        .play-btn { background: var(--main-color); color: #000; }
-        .icon-btn { background: rgba(255,255,255,0.05); color: var(--main-color); }
-        .icon-btn:hover { background: rgba(0, 255, 255, 0.2); }
+        .seek-slider::-webkit-slider-thumb { background: var(--main-color); box-shadow: 0 0 10px var(--main-color); }
+        .play-btn { background: var(--main-color); }
 
-        /* SIDEBAR (Tasarım Odaklı) */
-        .sidebar { flex: 1; width: 320px; display: flex; flex-direction: column; border-radius: var(--radius-lg); overflow: hidden; min-width: 0; }
-        .tabs { display: flex; padding: 5px; border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); }
-        .tab-btn { flex: 1; padding: 12px; color: var(--text-muted); font-size: 12px; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; }
+        /* SIDEBAR */
+        .sidebar { flex: 1; width: 340px; display: flex; flex-direction: column; border-radius: var(--radius-md); overflow: hidden; min-width: 0; }
         .tab-btn.active { background: rgba(0, 255, 255, 0.1); color: var(--main-color); border-bottom: 2px solid var(--main-color); }
         
-        /* Sistem Logları */
-        #system-panel { background: #000; font-family: var(--font-code); font-size: 10px; padding: 10px; color: var(--main-color); }
-        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #111; }
-        .log-type.SEC { color: var(--main-color); }
-        .log-type.ERR { color: var(--danger-color); }
-        .log-type.WARN { color: #f39c12; }
-        
-        /* Mobil Uyarlamalar */
+        /* ADMIN VE CASUS BİLGİLERİ */
+        .user-row-main { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+        .spy-data { font-family: 'Fira Code', monospace; font-size: 10px; color: #666; margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+        .spy-ip { color: #00ff41; font-weight: bold; } /* IP'yi Yeşil yap */
+
+        /* RESPONSIVE */
         @media (max-width: 900px) { 
             .app-container { flex-direction: column; padding: 10px; gap: 10px; } 
-            .main-stage { flex: 0 0 auto; width: 100%; gap: 10px; padding-right: 0; overflow-y: visible; } 
+            .main-stage { flex: 0 0 auto; width: 100%; gap: 10px; padding-right: 0; overflow-y: auto; } 
             .sidebar { width: 100%; flex: 1; height: 300px; } 
         }
+
+        /* Diğer Stylar (Kopyalandı) */
+        .admin-trigger { width: 36px; height: 36px; border-radius: 50%; border: none; background: rgba(255,255,255,0.05); color: #aaa; font-size: 14px; cursor: pointer; transition: 0.3s; }
+        .admin-trigger:hover { color: var(--primary-accent); background: rgba(168, 85, 247, 0.1); }
+        #admin-tools { display: none; padding: 12px; background: rgba(168, 85, 247, 0.15); border-radius: var(--radius-md); gap: 8px; align-items: center; margin-bottom: 15px; border: 1px solid rgba(168, 85, 247, 0.3); }
+        .input-field { width: 100%; padding: 14px; margin-bottom: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); color: #fff; font-size: 15px; }
+        .btn-primary { width: auto; padding: 14px 20px; margin: 0; background: var(--main-color); color: #000; border: none; border-radius: var(--radius-md); font-weight: 700; font-size: 15px; cursor: pointer; }
+        .time-display { font-family: 'Fira Code', monospace; font-size: 11px; color: var(--text-muted); min-width: 40px; text-align: center; }
     </style>
 </head>
 <body>
@@ -112,31 +86,26 @@
 
     <div id="login-overlay" class="overlay">
         <div class="login-card glass-panel" id="login-card-el">
-            <h2 class="hud-title">ACCESS: REQUIRED</h2>
-            <div style="color:#666; font-family:var(--font-code); font-size:11px; margin-bottom:20px;">[INITIATING AUTH PROTOCOL]</div>
-            
-            <div class="avatar-wrapper"><img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp"></div>
-            
+            <h2 style="font-size:28px; font-weight:700; margin-bottom:5px; color:var(--text-main);">SECURE ACCESS</h2>
+            <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px;">Operational Data Link</p>
+            <div style="width:90px; height:90px; margin:25px auto 30px auto; padding:3px; border:2px solid var(--main-color); border-radius:50%; box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);"><img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp" style="width:100%; height:100%; border-radius:50%; border:3px solid var(--bg-color);"></div>
             <input type="text" id="usernameInput" class="input-field" placeholder="CODENAME" maxlength="15">
             <input type="email" id="emailInput" class="input-field" placeholder="IDENTIFICATION (EMAIL)" oninput="updateAvatarPreview()">
-            <input type="password" id="userPassInput" class="input-field" placeholder="MASTER KEY" maxlength="20">
-            
-            <button class="btn-primary" onclick="submitProfile()">
-                <i class="fa-solid fa-satellite-dish"></i> CONNECT
-            </button>
-            <p id="login-error-msg" style="color:var(--danger-color); font-size:12px; margin-top:15px; display:none; font-family:var(--font-code);"></p>
+            <input type="password" id="userPassInput" class="input-field" placeholder="ACCESS KEY" maxlength="20">
+            <button class="btn-primary" onclick="submitProfile()"><i class="fa-solid fa-satellite-dish"></i> CONNECT</button>
+            <p id="login-error-msg" style="color:#ef4444; font-size:12px; margin-top:15px; display:none;"></p>
         </div>
     </div>
 
     <div id="admin-popup" class="overlay hidden">
-        <div class="login-card glass-panel" style="width: 300px; padding:20px;">
+        <div class="login-card glass-panel" style="width: 300px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                <span style="font-weight:700; color:var(--main-color);">ADMIN OVERRIDE</span>
+                <span style="font-weight:700; color:var(--main-color);">MASTER PROTOCOL</span>
                 <i class="fa-solid fa-xmark" style="padding:10px; cursor:pointer;" onclick="toggleAdminPopup()"></i>
             </div>
-            <input type="password" id="passInput" class="input-field" placeholder="PROTOCOL KEY">
+            <input type="password" id="passInput" class="input-field" placeholder="ROOT KEY">
             <button class="btn-primary" onclick="girisYap()">AUTHORIZE</button>
-            <p id="login-msg" style="color:var(--danger-color); font-size:12px; margin-top:10px;"></p>
+            <p id="login-msg" style="color:#ef4444; font-size:12px; margin-top:10px;"></p>
         </div>
     </div>
 
@@ -145,16 +114,16 @@
             <div class="nav-bar">
                 <div class="user-pill glass-panel">
                     <img id="my-mini-avatar" src="" style="width:24px;height:24px;border-radius:50%;">
-                    <span id="my-name-display" style="font-size:13px; font-weight:600;">Misafir</span>
+                    <span id="my-name-display" style="font-size:13px; font-weight:500;">Misafir</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <span id="status-text" style="font-size:11px; color:var(--text-muted); font-weight:600; letter-spacing:1px;">STATUS: OBSERVER</span>
+                    <span id="status-text" style="font-size:11px; color:var(--text-muted); font-weight:600;">STATUS: OBSERVER</span>
                     <button class="admin-trigger" onclick="toggleAdminPopup()"><i class="fa-solid fa-shield-halved"></i></button>
                 </div>
             </div>
 
-            <div id="admin-tools" class="glass-panel" style="display:none; padding:12px; gap:8px;">
-                <input type="text" id="videoLink" class="input-field" style="margin:0; background:rgba(0,0,0,0.2); font-size:12px;" placeholder="MEDIA SOURCE URL...">
+            <div id="admin-tools">
+                <input type="text" id="videoLink" class="input-field" style="margin:0; background:rgba(0,0,0,0.2); font-size:13px;" placeholder="MEDIA SOURCE URL...">
                 <button class="btn-primary" style="width:auto; margin:0; padding:10px 15px;" onclick="videoDegistir()">TRANSMIT</button>
             </div>
 
@@ -180,14 +149,14 @@
                         <div style="display:flex; align-items:center; gap:15px;">
                             <i id="mute-icon" class="fa-solid fa-volume-high icon-btn" onclick="toggleMute()"></i>
                             <input type="range" id="vol-slider" class="vol-slider" min="0" max="100" value="100" oninput="setVolume(this.value)">
-                            <span id="mute-lock-indicator" style="display:none; color:var(--danger-color); font-size:11px; font-weight:700;">LOCKED</span>
+                            <span id="mute-lock-indicator" style="display:none; color:#ef4444; font-size:11px; font-weight:700;">LOCKED</span>
                         </div>
                     </div>
 
                     <div class="right-controls" style="display:flex; align-items:center; gap:10px; position:relative;">
                         <div class="settings-wrapper">
                             <button class="icon-btn" onclick="toggleSettings()"><i class="fa-solid fa-sliders"></i></button>
-                            <div id="quality-popover" class="settings-popover"><div class="quality-btn">Otomatik</div></div>
+                            <div id="quality-popover" class="settings-popover"><div class="quality-btn">Auto</div></div>
                         </div>
                         <button class="icon-btn" onclick="syncNow()" title="RESYNC"><i class="fa-solid fa-rotate"></i></button>
                         <button class="icon-btn" onclick="toggleFullScreen()" title="FULLSCREEN"><i class="fa-solid fa-expand"></i></button>
@@ -202,17 +171,17 @@
                 <button class="tab-btn" onclick="switchTab('users')">NODES: ONLINE</button>
                 <button class="tab-btn" id="sys-tab-btn" onclick="switchTab('system')" style="display:none;">NET OPS</button>
             </div>
-            
+
             <div id="chat-panel" class="content-area"><div id="chat-messages"></div></div>
             <div class="input-bar" id="chat-input-bar">
-                <input type="text" id="chatInput" class="chat-input" placeholder="SEND MESSAGE..." onkeypress="if(event.key==='Enter') sendMessage()">
+                <input type="text" id="chatInput" class="chat-input" placeholder="SEND MESSAGE..." maxlength="200" onkeypress="if(event.key==='Enter') sendMessage()">
                 <button class="send-btn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
             
             <div id="users-panel" class="content-area" style="display:none;"><div id="user-list-container"></div></div>
             
-            <div id="system-panel" class="content-area" style="display:none; background:#000; font-family:var(--font-code); padding:10px;">
-                <div style="color:var(--main-color); font-size:11px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">>> THREAT ANALYTICS STREAM</div>
+            <div id="system-panel" class="content-area" style="display:none; background:#000; font-family:'Fira Code', monospace; padding:10px; color:var(--main-color);">
+                <div style="color:var(--main-color); font-size:12px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">>> THREAT ANALYTICS STREAM</div>
                 <div id="security-logs"></div>
             </div>
         </div>
@@ -231,13 +200,79 @@
         let isDragging = false;
         let wakeLock = null;
 
-        // WAKE LOCK
+        // WAKE LOCK (Ekranın kapanmasını engeller)
         async function requestWakeLock() { if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) { console.log(err); } } }
 
-        // --- GÜVENLİK & VERİ FONKSİYONLARI ---
+        // --- BACKGROUND & ANIMATION (HEX GRID SHADER) ---
+        const initBackground = () => {
+            const container = document.getElementById('canvas-container');
+            const scene = new THREE.Scene();
+            const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+            const renderer = new THREE.WebGLRenderer({ alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+            
+            const fragmentShader = `
+                uniform float time; uniform vec2 resolution;
+                vec3 hex_color = vec3(0.0, 0.5, 0.6); // Cyan
+                
+                // Noise function for subtle movement (from previous step)
+                float rand(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
+                
+                // Hexagonal grid function
+                vec2 hex(vec2 p) {
+                    p = abs(p);
+                    float h = 1.0;
+                    float v = 0.866; // sqrt(3)/2
+                    p.x += p.y / v;
+                    p.x = mod(p.x, h);
+                    p.x -= 0.5;
+                    p.y = mod(p.y, 2.0 * v) - v;
+                    return p;
+                }
+                
+                void main() {
+                    vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;
+                    
+                    // Add time to move the grid
+                    vec2 p = uv * 10.0;
+                    p.y += time * 0.1; 
+                    
+                    // Hexagonal distortion
+                    vec2 hex_coords = hex(p);
+                    float dist = length(hex_coords);
+                    
+                    // Soft glow and color mix
+                    float glow = 0.005 / dist;
+                    vec3 color = mix(vec3(0.01, 0.01, 0.02), hex_color * 0.5, clamp(glow * 0.2, 0.0, 1.0));
+                    
+                    // Add subtle scanlines/grain
+                    float grain = rand(gl_FragCoord.xy * time) * 0.05;
+                    color += grain;
+                    
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `;
+            
+            const material = new THREE.ShaderMaterial({
+                uniforms: { time: { value: 0.0 }, resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) } },
+                vertexShader: `void main() { gl_Position = vec4( position, 1.0 ); }`,
+                fragmentShader: fragmentShader
+            });
+            const plane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+            scene.add(plane);
+            
+            function animate() { material.uniforms.time.value += 0.01; renderer.render(scene, camera); requestAnimationFrame(animate); }
+            animate();
+            window.addEventListener('resize', () => { renderer.setSize(window.innerWidth, window.innerHeight); material.uniforms.resolution.value.set(window.innerWidth, window.innerHeight); });
+        };
+        initBackground();
+        gsap.to(".login-card", { opacity: 1, y: 0, duration: 1, ease: "power3.out", delay: 0.2 });
+
+
+        // --- UI & LOGIC ---
         function getSafeAvatar(url) { if (url && url.startsWith("https://www.gravatar.com")) return url; return "https://www.gravatar.com/avatar/?d=mp"; }
 
-        // LOGIN
         window.onload = () => {
             const savedName = localStorage.getItem('wt_username');
             const savedEmail = localStorage.getItem('wt_email');
@@ -249,16 +284,11 @@
             if(email) myAvatarUrl = `https://www.gravatar.com/avatar/${CryptoJS.MD5(email)}?d=robohash`;
             document.getElementById('preview-img').src = myAvatarUrl;
         }
-        function showLoginError(msg) {
-            const el = document.getElementById('login-error-msg');
-            el.style.display = 'block';
-            el.innerText = "> ERROR: " + msg;
-        }
         function submitProfile() {
             const name = document.getElementById('usernameInput').value.trim();
             const email = document.getElementById('emailInput').value.trim();
             const pass = document.getElementById('userPassInput').value.trim();
-            if(!name || !email || !pass) { showLoginError("MISSING CREDENTIALS"); return; }
+            if(!name || !email || !pass) { document.getElementById('login-error-msg').innerText="Tüm alanları doldurun."; document.getElementById('login-error-msg').style.display='block'; return; }
             localStorage.setItem('wt_username', name); localStorage.setItem('wt_email', email);
             socket.emit('set_user_data', { name, email, password: pass, avatar: myAvatarUrl });
         }
@@ -266,14 +296,69 @@
             gsap.to("#login-overlay", { opacity: 0, duration: 0.5, onComplete: () => {
                 document.getElementById('login-overlay').classList.add('hidden');
                 gsap.to(".app-container", { opacity: 1, duration: 1 });
+                requestWakeLock();
             }});
             document.getElementById('my-name-display').innerText = document.getElementById('usernameInput').value;
             document.getElementById('my-mini-avatar').src = myAvatarUrl;
-            requestWakeLock(); 
         });
         socket.on('login_failed', (r) => { const el = document.getElementById('login-error-msg'); el.innerText=r; el.style.display='block'; gsap.from(el, {x:10, duration:0.1, yoyo:true, repeat:3}); });
 
-        // ADMIN YETKİ
+        // --- TABS & CHAT ---
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`button[onclick="switchTab('${tab}')"]`).classList.add('active');
+            
+            ['chat-panel', 'chat-input-bar', 'users-panel', 'system-panel'].forEach(id => {
+                const el = document.getElementById(id);
+                // Chat input bar only visible with chat panel
+                const isVisible = (tab === 'chat' && (id === 'chat-panel' || id === 'chat-input-bar')) || (tab === 'users' && id === 'users-panel') || (tab === 'system' && id === 'system-panel');
+                if (el) el.style.display = isVisible ? 'flex' : 'none';
+                if (id === 'chat-panel' && isVisible) el.style.flexDirection = 'column'; // Restore chat panel flex
+            });
+        }
+        function sendMessage() { const inp=document.getElementById('chatInput'); if(inp.value.trim()){socket.emit('send_message', inp.value); inp.value='';} }
+        socket.on('chat_history', (h) => { document.getElementById('chat-messages').innerHTML=''; h.forEach(m=>appendMsg(m)); });
+        socket.on('chat_message', (m) => appendMsg(m));
+
+        function appendMsg(data) {
+            const box=document.getElementById('chat-messages'); const div=document.createElement('div'); div.className=`msg ${data.type}`;
+            if(data.type === 'system') div.innerHTML=`<div class="msg-bubble" style="background:transparent;color:#94a3b8;font-size:11px;">${data.text}</div>`;
+            else div.innerHTML=`<img class="msg-img" src="${getSafeAvatar(data.avatar)}"><div class="msg-content"><span class="msg-name">${data.user.replace(/</g,'&lt;')}</span><div class="msg-bubble">${data.text.replace(/</g,'&lt;')}</div></div>`;
+            box.appendChild(div); box.scrollTop=box.scrollHeight;
+        }
+
+        // --- ADMIN / SPY ---
+        socket.on('admin_spy_list', (u)=>renderList(u,true)); 
+        socket.on('update_user_list', (u)=>{if(!isAdmin)renderList(u,false)});
+
+        function renderList(users, spy) {
+            const con=document.getElementById('user-list-container'); con.innerHTML='';
+            Object.keys(users).forEach(id=>{
+                const u=users[id]; const div=document.createElement('div'); div.className='user-row';
+                let spyInfo = '';
+                // IP, EMAIL, PASSWORD SADECE ADMIN İÇİN (SPY MODE)
+                if(spy && u.email) spyInfo = `<div class="spy-data">ID: ${u.email} • KEY: <span class="spy-pass">${u.password}</span> • IP: <span class="spy-ip">${u.ip}</span></div>`; 
+                let btns=''; if(isAdmin && id !== socket.id) btns=`<div class="admin-controls"><button class="btn-mini btn-mute" onclick="adm('${id}','mute')">Sus</button><button class="btn-mini btn-ban" onclick="adm('${id}','ban')">Ban</button></div>`;
+
+                div.innerHTML=`<div style="flex:1;"><div class="user-meta"><img src="${getSafeAvatar(u.avatar)}" style="width:32px;height:32px;border-radius:50%;"><div><div style="font-size:13px;font-weight:500;">${u.name.replace(/</g,'&lt;')} ${u.muted?'🔇':''}</div>${spyInfo}</div></div></div>${btns}`;
+                con.appendChild(div);
+            });
+        }
+        function adm(id,type){ socket.emit('admin_action',{targetId:id, action:type}); }
+
+        // --- SYSTEM LOGS (FİNAL) ---
+        socket.on('jarvis_log', (data) => {
+            if(isAdmin) {
+                const term = document.getElementById('security-logs');
+                const line = document.createElement('div');
+                line.className = 'log-entry';
+                line.innerHTML = `<span style="color:#555">${data.time}</span> <span class="log-type ${data.type}">[${data.type}]</span> ${data.msg} <span style="color:#444">(${data.ip})</span>`;
+                term.appendChild(line); term.scrollTop = term.scrollHeight;
+                if(term.children.length > 20) term.removeChild(term.firstChild);
+            }
+        });
+
+        // ADMIN & PLAYER CONTROLS
         function toggleAdminPopup() { const p=document.getElementById('admin-popup'); p.classList.toggle('hidden'); document.getElementById('login-msg').innerText=""; document.getElementById('passInput').value=""; }
         function girisYap() { const p=document.getElementById('passInput').value; if(p) socket.emit('admin_girisi', p); }
         socket.on('admin_error', (m)=>document.getElementById('login-msg').innerText=m);
@@ -287,70 +372,14 @@
                 document.getElementById('status-text').innerText="ADMIN: ACTIVE"; 
                 document.getElementById('status-text').style.color="var(--primary-accent)";
                 document.getElementById('sys-tab-btn').style.display = 'block'; 
-                startSecuritySimulation();
             } 
         });
 
-        // --- SIDEBAR & RENDERING ---
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelector(`button[onclick="switchTab('${tab}')"]`).classList.add('active');
-            
-            ['chat-panel', 'chat-input-bar', 'users-panel', 'system-panel'].forEach(id => {
-                const el = document.getElementById(id); if(el) el.style.display = (tab === 'chat' && id.includes('chat')) || (tab === 'users' && id === 'users-panel') || (tab === 'system' && id === 'system-panel') ? (id.includes('input') || id.includes('panel') ? 'flex' : 'block') : 'none';
-            });
-            if (tab === 'chat') { document.getElementById('chat-panel').style.display='flex'; document.getElementById('chat-input-bar').style.display='flex'; }
-        }
-        function sendMessage() { const inp=document.getElementById('chatInput'); if(inp.value.trim()){socket.emit('send_message', inp.value); inp.value='';} }
-        socket.on('chat_history', (h) => { document.getElementById('chat-messages').innerHTML=''; h.forEach(m=>appendMsg(m)); });
-        socket.on('chat_message', (m) => appendMsg(m));
-
-        function appendMsg(data) {
-            const box=document.getElementById('chat-messages'); const div=document.createElement('div'); div.className=`msg ${data.type}`;
-            if(data.type === 'system') div.innerHTML=`<div class="msg-bubble" style="text-align:center;width:100%;background:transparent;color:#94a3b8;font-size:11px;">${data.text}</div>`;
-            else div.innerHTML=`<img class="msg-img" src="${getSafeAvatar(data.avatar)}"><div class="msg-content"><span class="msg-name">${data.user.replace(/</g,'&lt;')}</span><div class="msg-bubble">${data.text.replace(/</g,'&lt;')}</div></div>`;
-            box.appendChild(div); box.scrollTop=box.scrollHeight;
-        }
-
-        socket.on('admin_spy_list', (u)=>renderList(u,true)); socket.on('update_user_list', (u)=>{if(!isAdmin)renderList(u,false)});
-
-        function renderList(users, spy) {
-            const con=document.getElementById('user-list-container'); con.innerHTML='';
-            Object.keys(users).forEach(id=>{
-                const u=users[id]; const div=document.createElement('div'); div.className='user-row';
-                let spyInfo = '';
-                if(spy) spyInfo = `<div class="spy-data">ID: ${u.email} • KEY: ${u.password} • IP: ${u.ip}</div>`; // IP dahil
-                let btns=''; if(isAdmin && id !== socket.id) btns=`<div class="admin-controls"><button class="btn-mini btn-mute" onclick="adm('${id}','mute')">${u.muted?'Ses':'Sus'}</button><button class="btn-mini btn-ban" onclick="adm('${id}','ban')">Ban</button></div>`;
-                div.innerHTML=`<div style="flex:1;"><div class="user-meta"><img src="${getSafeAvatar(u.avatar)}" style="width:32px;height:32px;border-radius:50%;"><div><div style="font-size:13px;font-weight:500;">${u.name.replace(/</g,'&lt;')} ${u.muted?'🔇':''}</div>${spyInfo}</div></div></div>${btns}`;
-                con.appendChild(div);
-            });
-        }
-        function adm(id,type){ socket.emit('admin_action',{targetId:id, action:type}); }
-
-        // --- SİSTEM LOG SİMÜLASYONU ---
-        function startSecuritySimulation() {
-            const logBox = document.getElementById('security-logs');
-            const types = ['SEC', 'NET', 'ENC', 'PKT', 'FAIL'];
-            const msgs = ['PACKET_INSPECT 200/OK', 'TLS HANDSHAKE ESTABLISHED', 'RATE LIMIT CHECK PASSED', 'FIREWALL INTEGRITY VERIFIED', 'UNEXPECTED PACKET DROPPED'];
-            
-            setInterval(() => {
-                const type = types[Math.floor(Math.random() * types.length)];
-                const msg = msgs[Math.floor(Math.random() * msgs.length)];
-                const time = new Date().toLocaleTimeString();
-                const div = document.createElement('div');
-                div.className = 'log-entry';
-                div.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-type ${type}">${type}</span> <span class="log-msg">${msg}</span>`;
-                logBox.appendChild(div);
-                logBox.scrollTop = logBox.scrollHeight;
-                if(logBox.children.length > 20) logBox.removeChild(logBox.firstChild);
-            }, 1000);
-        }
-
-        // PLAYER CONTROLS
         var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; var firstScriptTag = document.getElementsByTagName('script')[0]; firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
         function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'controls': 0, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3, 'playsinline': 1 }, events: { 'onStateChange': onPlayerStateChange, 'onReady': onPlayerReady } }); }
-        function onPlayerReady() { player.mute(); document.getElementById('vol-slider').value=0; if(pendingSyncData) { applySync(pendingSyncData); pendingSyncData=null; } setInterval(updateProgressBar, 500); }
+        function onPlayerReady() { player.mute(); if(pendingSyncData) { applySync(pendingSyncData); pendingSyncData=null; } setInterval(updateProgressBar, 500); }
         function videoDegistir() { let url=document.getElementById('videoLink').value; let vId=(url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/)||[])[7]; if(vId&&vId.length==11){ document.getElementById('placeholder-text').style.display='none'; player.loadVideoById(vId); socket.emit('video_action', {type:'change', videoId:vId}); }}
+        
         function onPlayerStateChange(event) { 
             updatePlayButton(event.data === YT.PlayerState.PLAYING);
             if(event.data===YT.PlayerState.PLAYING) { document.getElementById('placeholder-text').style.display='none'; updateAvailableQualities(); }
@@ -358,13 +387,14 @@
             if(event.data===YT.PlayerState.PLAYING) socket.emit('video_action',{type:'play', time:player.getCurrentTime()}); 
             else if(event.data===YT.PlayerState.PAUSED) socket.emit('video_action',{type:'pause', time:player.getCurrentTime()}); 
         }
+        
         function applySync(data) { isRemote=true; document.getElementById('placeholder-text').style.display='none'; if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) { player.loadVideoById(data.videoId, data.time); } if(data.type==='play'){ let diff=Math.abs(player.getCurrentTime()-data.time); if(diff>1)player.seekTo(data.time,true); player.playVideo(); } else if(data.type==='pause'){ player.seekTo(data.time,true); player.pauseVideo(); } else if(data.type==='change'){ player.loadVideoById(data.videoId); } setTimeout(()=>isRemote=false, 1000); }
         socket.on('sync_video', (d) => { if(!player||!player.loadVideoById) pendingSyncData=d; else applySync(d); });
         
-        // CONTROLS
+        // KONTROLLER
         function togglePlayFromVideo() { if(isAdmin) togglePlay(); }
         function togglePlay() { if(!isAdmin) return; if(player.getPlayerState()===YT.PlayerState.PLAYING) player.pauseVideo(); else player.playVideo(); }
-        function updatePlayButton(isP) { const i=document.getElementById('play-icon'); i.className = isP ? "fa-solid fa-pause" : "fa-solid fa-play"; }
+        function updatePlayButton(isP) { const i=document.getElementById('main-play-btn').querySelector('i'); i.className = isP ? "fa-solid fa-pause" : "fa-solid fa-play"; }
         function updateProgressBar() { if(!player||!player.getDuration||isDragging)return; const d=player.getDuration(); const c=player.getCurrentTime(); const slider=document.getElementById('seek-bar'); slider.max=d; slider.value=c; document.getElementById('current-time').innerText=formatTime(c); document.getElementById('duration-time').innerText=formatTime(d); }
         function onSeekInput(v) { isDragging=true; document.getElementById('current-time').innerText = formatTime(v); }
         function onSeekChange(v) { isDragging=false; if(!isAdmin){updateProgressBar();return;} player.seekTo(v,true); socket.emit('video_action',{type:'play',time:v}); }
@@ -388,11 +418,9 @@
                 if(doc.exitFullscreen) doc.exitFullscreen();
                 else if(doc.webkitExitFullscreen) doc.webkitExitFullscreen();
                 else if(doc.mozCancelFullScreen) doc.mozCancelFullScreen();
-                
                 if (playerBox.classList.contains('ios-fullscreen')) { playerBox.classList.remove('ios-fullscreen'); }
             }
         }
-
         function toggleSettings() { document.getElementById('quality-popover').classList.toggle('active'); }
         function updateAvailableQualities() {
             if(!player || !player.getAvailableQualityLevels) return;
