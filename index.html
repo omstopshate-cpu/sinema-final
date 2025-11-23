@@ -2,105 +2,157 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>W.A.T.C.H. // Latent Space</title>
+    <title>WatchTogether // Cyber Command</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     
-    <!-- FONTS -->
-    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;500;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
     <style>
-        /* --- 0.1% DESIGN TOKENS --- */
+        /* --- DESIGN TOKENS --- */
         :root {
-            --bg-deep: #050505;
-            --indigo-active: #4B00FF; /* Electric Indigo */
-            --indigo-light: rgba(75, 0, 255, 0.4);
-            --text-main: #E0E0E0;
-            --text-muted: #666;
-            --glass-surface: rgba(10, 10, 15, 0.8);
-            --glass-border: rgba(75, 0, 255, 0.3);
-            --font-code: 'Space Mono', monospace;
-            --font-display: 'Rajdhani', sans-serif;
-            --danger-color: #FF4444;
-            --radius-md: 6px;
+            --bg-color: #08080b;
+            --glass-surface: rgba(20, 20, 25, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --primary-accent: #a855f7;
+            --secondary-accent: #3b82f6;
+            --cyber-green: #00ff41; /* Matrix Green */
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+            --radius-lg: 24px;
+            --radius-md: 16px;
         }
 
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+
+        /* Scrollbar Güzelleştirme */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: var(--indigo-light); border-radius: 10px; }
-        
-        body { margin: 0; padding: 0; background: var(--bg-deep); color: var(--text-main); font-family: var(--font-display); display: flex; height: 100vh; overflow: hidden; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
-        /* ARKA PLAN */
-        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; opacity: 0.8; }
-        .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: 0.15; } /* Dithering Noise */
+        body {
+            margin: 0; padding: 0; background: var(--bg-color);
+            color: var(--text-main); font-family: 'Manrope', sans-serif;
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+        }
 
-        /* CAM PANEL */
-        .glass-panel { background: var(--glass-surface); backdrop-filter: blur(15px); border: 1px solid var(--glass-border); box-shadow: 0 0 20px rgba(75, 0, 255, 0.15); border-radius: var(--radius-md); transition: all 0.3s ease; }
-        .glass-panel:hover { border-color: var(--indigo-active); }
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+        .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: 0.05; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E"); }
+        .glass-panel { background: var(--glass-surface); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
 
         /* LOGIN */
-        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.95); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .hidden { display: none !important; opacity: 0; transition: opacity 0.5s ease; }
-        .login-card { width: 100%; max-width: 450px; padding: 40px; text-align: center; border-radius: var(--radius-md); border-top: 3px solid var(--indigo-active); box-shadow: var(--shadow-glow); }
-        .brand-logo { font-size: 32px; font-weight: 700; color: var(--text-main); letter-spacing: 2px; text-shadow: 0 0 10px var(--indigo-active); }
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5, 5, 8, 0.9); backdrop-filter: blur(15px); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .hidden { display: none !important; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
+        .login-card { width: 100%; max-width: 380px; padding: 30px; border-radius: var(--radius-lg); text-align: center; border-top: 2px solid var(--primary-accent); }
+        .input-field { width: 100%; padding: 14px; margin-bottom: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); color: #fff; font-size: 15px; transition: 0.3s; }
+        .input-field:focus { background: rgba(255,255,255,0.1); border-color: var(--primary-accent); }
+        .btn-primary { width: 100%; padding: 14px; margin-top: 10px; background: var(--text-main); color: #000; border: none; border-radius: var(--radius-md); font-weight: 700; font-size: 15px; cursor: pointer; transition: 0.2s; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(255,255,255,0.2); }
         
-        .avatar-wrapper { width: 90px; height: 90px; margin: 25px auto 30px auto; padding: 3px; border: 2px solid var(--main-color); border-radius: 50%; }
-        .input-field { width: 100%; padding: 14px; margin-bottom: 15px; background: rgba(255,255,255,0.05); border: 1px solid #333; border-left: 3px solid var(--indigo-active); color: #fff; font-family: var(--font-code); font-size: 14px; }
-        .input-field:focus { background: rgba(75, 0, 255, 0.1); border-color: var(--indigo-active); }
-        
-        .btn-primary { width: 100%; padding: 16px; margin-top: 15px; background: var(--indigo-active); color: #fff; font-weight: 700; border-radius: var(--radius-md); font-family: var(--font-code); transition: 0.2s; }
-        .btn-primary:hover { background: #5e1bff; }
+        /* --- PC LAYOUT FIX (SCROLLABLE MAIN STAGE) --- */
+        .app-container { display: flex; width: 100%; height: 100%; z-index: 1; padding: 20px; gap: 20px; opacity: 0; }
+        .main-stage { 
+            flex: 2; display: flex; flex-direction: column; gap: 15px; min-width: 0;
+            overflow-y: auto; /* EKRAN KÜÇÜKSE KAYDIRMA AÇ */
+            padding-right: 5px; /* Scrollbar için pay */
+        }
 
-        /* --- APP LAYOUT (Geniş & Ayrık) --- */
-        .app-container { opacity: 0; padding: 25px; gap: 25px; width: 100%; height: 100%; }
-        .main-stage { flex: 1; display: flex; flex-direction: column; gap: 25px; overflow-y: auto; padding-right: 10px; }
-        
+        .nav-bar { display: flex; justify-content: space-between; align-items: center; }
+        .user-pill { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-radius: 50px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); }
+        .user-pill img { width: 24px; height: 24px; border-radius: 50%; }
+        .admin-trigger { width: 36px; height: 36px; border-radius: 50%; border: none; background: rgba(255,255,255,0.05); color: #aaa; font-size: 14px; cursor: pointer; transition:0.3s; }
+        .admin-trigger:hover { color: var(--primary-accent); background: rgba(168, 85, 247, 0.1); }
+
         /* VIDEO */
-        .cinema-display { width: 100%; aspect-ratio: 16/9; position: relative; box-shadow: 0 0 40px rgba(75, 0, 255, 0.2); }
+        .cinema-display { width: 100%; aspect-ratio: 16/9; position: relative; border-radius: var(--radius-md); overflow: hidden; background: #000; border: 1px solid var(--glass-border); box-shadow: 0 10px 40px rgba(0,0,0,0.6); flex-shrink: 0; }
         #player-wrapper, #player { width: 100%; height: 100%; position: absolute; }
-        #blocker { z-index: 10; }
-        #placeholder-text { color: var(--text-muted); font-family: var(--font-code); z-index: 5; }
+        #blocker { position: absolute; width: 100%; height: 100%; z-index: 10; }
+        #placeholder-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.3); font-size: 14px; text-align: center; pointer-events: none; z-index: 5; letter-spacing: 2px; }
 
-        /* DOCK */
-        .control-dock { display: flex; flex-direction: column; gap: 10px; padding: 15px 25px; margin-bottom: 20px; }
-        .time-display { font-family: var(--font-code); font-size: 11px; color: var(--text-muted); }
-        .seek-slider::-webkit-slider-thumb { background: var(--indigo-active); box-shadow: 0 0 10px var(--indigo-active); }
-        .seek-slider.locked { pointer-events: none; opacity: 0.5; }
+        /* CONTROL DOCK */
+        .control-dock { display: flex; flex-direction: column; gap: 10px; padding: 15px 25px; border-radius: var(--radius-md); margin-bottom: 20px; }
         
-        .play-btn { background: var(--indigo-active); color: #fff; }
-        .icon-btn { background: rgba(255,255,255,0.05); color: var(--main-color); }
-        .icon-btn:hover { background: rgba(0, 255, 255, 0.1); }
+        .progress-container { width: 100%; display: flex; align-items: center; gap: 15px; }
+        .time-display { font-size: 11px; color: var(--text-muted); min-width: 35px; text-align: center; font-family: 'Fira Code', monospace; }
+        input[type=range].seek-slider { -webkit-appearance: none; width: 100%; background: transparent; height: 20px; cursor: pointer; }
+        input[type=range].seek-slider::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; }
+        input[type=range].seek-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%; background: var(--primary-accent); margin-top: -4px; box-shadow: 0 0 10px var(--primary-accent); transition: transform 0.2s; }
+        input[type=range].seek-slider:hover::-webkit-slider-thumb { transform: scale(1.3); }
+        input[type=range].seek-slider.locked { cursor: default; pointer-events: none; opacity: 0.5; }
 
-        /* SIDEBAR (Console) */
-        .sidebar { flex: 0 0 350px; /* Sabit Genişlik */ border-left: 1px solid var(--glass-border); background: var(--bg-deep); overflow: hidden; }
-        .tabs { border-bottom: 1px solid var(--glass-border); background: var(--glass-surface); padding: 5px; }
-        .tab-btn { font-size: 12px; color: var(--text-muted); font-family: var(--font-code); letter-spacing: 1px; }
-        .tab-btn.active { color: var(--main-color); border-bottom: 2px solid var(--main-color); background: rgba(0, 255, 255, 0.1); }
+        .dock-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; }
+        .play-btn { width: 45px; height: 45px; border-radius: 50%; border: none; background: #fff; color: #000; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .play-btn:hover { transform: scale(1.1); box-shadow: 0 0 20px rgba(255,255,255,0.4); }
+        .play-btn.hidden { display: none; }
         
-        /* CHAT / LOGS */
-        .content-area { flex: 1; padding: 15px; background: rgba(0,0,0,0.4); }
-        .input-bar { border-top: 1px solid var(--glass-border); background: rgba(0,0,0,0.5); padding: 10px; }
-        .chat-input { background: rgba(0,0,0,0.5); color: var(--main-color); border: 1px solid var(--glass-border); font-family: var(--font-code); }
-        .send-btn { background: var(--main-color); color: #000; }
+        .icon-btn { background: transparent; border: none; color: #fff; font-size: 18px; padding: 8px; border-radius: 50%; cursor: pointer; opacity: 0.7; transition: 0.2s; }
+        .icon-btn:hover { opacity: 1; background: rgba(255,255,255,0.1); }
         
-        /* LOGIC COLORS */
-        .msg-name { color: var(--main-color); font-family: var(--font-code); }
-        .msg-bubble { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); }
-        .spy-data { color: #888; font-family: var(--font-code); }
-        .spy-ip { color: var(--main-color); }
-        .spy-pass { color: var(--danger-color); }
+        /* SIDEBAR */
+        .sidebar { flex: 1; width: 340px; display: flex; flex-direction: column; border-radius: var(--radius-lg); overflow: hidden; min-width: 0; border: 1px solid var(--glass-border); }
+        .tabs { display: flex; padding: 5px; border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); }
+        .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; }
+        .tab-btn.active { background: rgba(255,255,255,0.05); color: #fff; border-bottom: 2px solid var(--primary-accent); }
+        .tab-btn.system-tab { color: var(--cyber-green); display: none; } /* Admin olunca görünür */
+        .tab-btn.system-tab.active { border-bottom-color: var(--cyber-green); background: rgba(0, 255, 65, 0.1); }
 
-        /* ADMIN TOOLS */
-        #admin-tools { background: rgba(75, 0, 255, 0.15); border: 1px solid var(--glass-border); margin-bottom: 15px; }
+        .content-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
         
-        /* RESPONSIVE */
+        /* CHAT */
+        .input-bar { padding: 15px; border-top: 1px solid var(--glass-border); display: flex; gap: 10px; background: rgba(0,0,0,0.2); }
+        .chat-input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid transparent; padding: 10px 15px; border-radius: 50px; color: #fff; font-size: 14px; }
+        .chat-input:focus { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.1); }
+        .send-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--secondary-accent); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        
+        .msg { display: flex; gap: 10px; align-items: flex-end; animation: fadeIn 0.3s ease; }
+        .msg-img { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2); }
+        .msg-bubble { background: rgba(255,255,255,0.08); padding: 8px 12px; border-radius: 16px; border-bottom-left-radius: 2px; font-size: 13px; line-height: 1.4; color: #eee; word-wrap: break-word; }
+        .msg-name { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; margin-left: 2px; }
+        .msg.system .msg-bubble { background: transparent; border: 1px dashed rgba(255,255,255,0.1); font-size: 11px; color: #aaa; padding: 4px 10px; align-self: center; text-align: center; }
+
+        /* KULLANICI LISTESI & IP */
+        .user-row { display: flex; align-items: center; justify-content: space-between; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 10px; transition: 0.2s; }
+        .user-row:hover { background: rgba(255,255,255,0.06); }
+        .user-meta { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+        .spy-info { font-family: 'Fira Code', monospace; font-size: 10px; color: #666; margin-top: 4px; display: flex; flex-direction: column; }
+        .spy-ip { color: var(--cyber-green); }
+        .spy-pass { color: #ef4444; }
+
+        /* SİBER PANEL (MATRIX LOGS) */
+        #system-panel { background: #000; font-family: 'Fira Code', monospace; font-size: 11px; padding: 10px; }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #111; padding-bottom: 2px; display: flex; gap: 8px; }
+        .log-time { color: #555; }
+        .log-type { font-weight: bold; }
+        .log-msg { color: #ccc; }
+        .log-type.SEC { color: var(--cyber-green); }
+        .log-type.WARN { color: #f59e0b; }
+        .log-type.ERR { color: #ef4444; }
+
+        /* POPUPS */
+        .settings-popover { position: absolute; bottom: 60px; right: 10px; width: 120px; background: rgba(20,20,25,0.95); border-radius: 12px; padding: 5px; display: none; flex-direction: column; z-index: 50; border:1px solid var(--glass-border); box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+        .settings-popover.active { display: flex; animation: popUp 0.2s ease; }
+        .quality-btn { padding: 8px; font-size: 12px; color: #ccc; cursor: pointer; border-radius: 6px; }
+        .quality-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        
+        #admin-tools { display: none; padding: 12px; background: rgba(168, 85, 247, 0.15); border-radius: var(--radius-md); gap: 8px; align-items: center; margin-bottom: 15px; border: 1px solid rgba(168, 85, 247, 0.3); }
+        .admin-controls { display: flex; gap: 5px; }
+        .btn-mini { padding: 4px 8px; font-size: 10px; border-radius: 4px; border: none; color: white; cursor: pointer; font-weight: 700; }
+        .btn-mute { background: #f59e0b; } .btn-ban { background: #ef4444; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes popUp { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
         @media (max-width: 900px) { 
             .app-container { flex-direction: column; padding: 10px; gap: 10px; } 
-            .main-stage { flex: 0 0 auto; width: 100%; gap: 10px; padding-right: 0; } 
-            .sidebar { width: 100%; flex: 1; height: 300px; } 
+            .main-stage { flex: 0 0 auto; width: 100%; gap: 10px; padding-right: 0; overflow: visible; } 
+            .cinema-display { width: 100%; border-radius: 12px; } 
+            .sidebar { width: 100%; flex: 1; border-radius: 12px; height: 300px; } /* Mobilde chat yüksekliği sabit */
+            .login-card { width: 95%; padding: 25px; } 
+            #vol-slider { display: none; } 
         }
     </style>
 </head>
@@ -109,55 +161,52 @@
     <div id="canvas-container"></div>
     <div class="noise-overlay"></div>
 
-    <!-- LOGIN -->
     <div id="login-overlay" class="overlay">
         <div class="login-card glass-panel">
-            <h2 class="brand-logo">CORE_ACCESS</h2>
-            <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px;">Secure Data Protocol V3</p>
+            <div class="brand-logo">WatchTogether</div>
+            <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px;">Secure Access</p>
             <div class="avatar-wrapper"><img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp"></div>
-            <input type="text" id="usernameInput" class="input-field" placeholder="CODENAME" maxlength="15">
-            <input type="email" id="emailInput" class="input-field" placeholder="IDENTIFICATION (EMAIL)" oninput="updateAvatarPreview()">
-            <input type="password" id="userPassInput" class="input-field" placeholder="ACCESS KEY" maxlength="20">
-            <button class="btn-primary" onclick="submitProfile()">CONNECT</button>
-            <p id="login-error-msg" style="color:var(--danger-color); font-size:12px; margin-top:15px; display:none;"></p>
+            <input type="text" id="usernameInput" class="input-field" placeholder="İsminiz" maxlength="15">
+            <input type="email" id="emailInput" class="input-field" placeholder="E-Posta (Zorunlu)" oninput="updateAvatarPreview()">
+            <input type="password" id="userPassInput" class="input-field" placeholder="Oda Şifresi" maxlength="20">
+            <button class="btn-primary" onclick="submitProfile()">Giriş Yap</button>
+            <p id="login-error-msg" style="color:#ef4444; font-size:12px; margin-top:15px; display:none;"></p>
         </div>
     </div>
 
-    <!-- ADMIN LOGIN -->
     <div id="admin-popup" class="overlay hidden">
         <div class="login-card glass-panel" style="width: 300px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                <span style="font-weight:700; color:var(--main-color);">ROOT OVERRIDE</span>
-                <i class="fa-solid fa-xmark" style="padding:10px; cursor:pointer; color:#999;" onclick="toggleAdminPopup()"></i>
+                <span style="font-weight:700; color: var(--primary-accent);">Yönetici Protokolü</span>
+                <i class="fa-solid fa-xmark" style="padding:10px; cursor:pointer;" onclick="toggleAdminPopup()"></i>
             </div>
-            <input type="password" id="passInput" class="input-field" placeholder="MASTER KEY">
-            <button class="btn-primary" onclick="girisYap()">AUTHORIZE</button>
-            <p id="login-msg" style="color:var(--danger-color); font-size:12px; margin-top:10px;"></p>
+            <input type="password" id="passInput" class="input-field" placeholder="Admin Key">
+            <button class="btn-primary" onclick="girisYap()">Erişim İste</button>
+            <p id="login-msg" style="color:#ef4444; font-size:12px; margin-top:10px;"></p>
         </div>
     </div>
 
     <div class="app-container">
-        <!-- SOL: KONTROL VE VİDEO -->
         <div class="main-stage">
             <div class="nav-bar">
                 <div class="user-pill glass-panel">
-                    <img id="my-mini-avatar" src="" style="width:24px;height:24px;border-radius:50%;">
+                    <img id="my-mini-avatar" src="">
                     <span id="my-name-display" style="font-size:13px; font-weight:500;">Misafir</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <span id="status-text" style="font-size:11px; color:var(--text-muted); font-weight:600; letter-spacing:1px;">OBSERVER</span>
-                    <button class="admin-trigger glass-panel" onclick="toggleAdminPopup()"><i class="fa-solid fa-shield-halved"></i></button>
+                    <span id="status-text" style="font-size:11px; color:rgba(255,255,255,0.4); font-weight:700; letter-spacing:1px;">İZLEYİCİ</span>
+                    <button class="admin-trigger" onclick="toggleAdminPopup()"><i class="fa-solid fa-shield-halved"></i></button>
                 </div>
             </div>
 
-            <div id="admin-tools" class="glass-panel" style="display:none; padding:12px; gap:8px; align-items:center;">
-                <input type="text" id="videoLink" class="input-field" style="margin:0; background:rgba(0,0,0,0.2); font-size:12px; border-left:3px solid var(--secondary-accent);" placeholder="MEDIA SOURCE URL...">
-                <button class="btn-primary" style="width:auto; margin:0; padding:10px 15px; background:var(--secondary-accent);" onclick="videoDegistir()">TRANSMIT</button>
+            <div id="admin-tools">
+                <input type="text" id="videoLink" class="input-field" style="margin:0; background:rgba(0,0,0,0.2); font-size:12px;" placeholder="YouTube Video URL...">
+                <button class="btn-primary" style="width:auto; margin:0; padding:10px 15px;" onclick="videoDegistir()">YAYINLA</button>
             </div>
 
             <div class="cinema-display glass-panel" id="cinema-box">
-                <div id="placeholder-text">INITIATING DATA STREAM...</div>
-                <div id="blocker"></div> 
+                <div id="placeholder-text">SİNYAL BEKLENİYOR</div>
+                <div id="blocker"></div>
                 <div id="player-wrapper"><div id="player"></div></div>
             </div>
 
@@ -177,64 +226,51 @@
                         <div style="display:flex; align-items:center; gap:15px;">
                             <i id="mute-icon" class="fa-solid fa-volume-high icon-btn" onclick="toggleMute()"></i>
                             <input type="range" id="vol-slider" class="vol-slider" min="0" max="100" value="100" oninput="setVolume(this.value)">
-                            <span id="mute-lock-indicator" style="display:none; color:var(--danger-color); font-size:11px; font-weight:700;">LOCKED</span>
+                            <span id="mute-lock-indicator" style="display:none; color:#ef4444; font-size:10px; font-weight:700;">KİLİTLİ</span>
                         </div>
                     </div>
 
                     <div class="right-controls" style="display:flex; align-items:center; gap:10px; position:relative;">
                         <div class="settings-wrapper">
                             <button class="icon-btn" onclick="toggleSettings()"><i class="fa-solid fa-sliders"></i></button>
-                            <div id="quality-popover" class="settings-popover"><div class="quality-btn">Auto</div></div>
+                            <div id="quality-popover" class="settings-popover"><div class="quality-btn">Otomatik</div></div>
                         </div>
-                        <button class="icon-btn" onclick="syncNow()" title="RESYNC"><i class="fa-solid fa-rotate"></i></button>
-                        <button class="icon-btn" onclick="toggleFullScreen()" title="FULLSCREEN"><i class="fa-solid fa-expand"></i></button>
+                        <button class="icon-btn" onclick="syncNow()" title="Senkronize Et"><i class="fa-solid fa-rotate"></i></button>
+                        <button class="icon-btn" onclick="toggleFullScreen()" title="Tam Ekran"><i class="fa-solid fa-expand"></i></button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- SAĞ: SIDEBAR (VERİ AKIŞI) -->
         <div class="sidebar glass-panel">
             <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('chat')">LOGS: MESSAGES</button>
-                <button class="tab-btn" onclick="switchTab('users')">NODES: ONLINE</button>
-                <button class="tab-btn system-tab" id="sys-tab-btn" onclick="switchTab('system')" style="display:none;">NET OPS</button>
+                <button class="tab-btn active" onclick="switchTab('chat')">Sohbet</button>
+                <button class="tab-btn" onclick="switchTab('users')">Kişiler</button>
+                <button class="tab-btn system-tab" id="sys-tab-btn" onclick="switchTab('system')">SİSTEM</button>
             </div>
 
             <div id="chat-panel" class="content-area"><div id="chat-messages"></div></div>
+            
             <div class="input-bar" id="chat-input-bar">
-                <input type="text" id="chatInput" class="chat-input" placeholder="SEND MESSAGE..." maxlength="200" onkeypress="if(event.key==='Enter') sendMessage()">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Mesaj..." onkeypress="if(event.key==='Enter') sendMessage()">
                 <button class="send-btn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
-            
+
             <div id="users-panel" class="content-area" style="display:none;"><div id="user-list-container"></div></div>
-            
-            <!-- SİBER PANEL (NET OPS) -->
-            <div id="system-panel" class="content-area" style="display:none; background:#000; font-family:'Fira Code', monospace; padding:10px; color:var(--main-color);">
-                <div style="color:var(--main-color); font-size:12px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">>> THREAT ANALYTICS STREAM</div>
+
+            <div id="system-panel" class="content-area" style="display:none; background:#000; font-family:'Fira Code', monospace; padding:10px;">
+                <div style="color:#00ff41; font-size:12px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">>> SECURITY LOG STREAM</div>
                 <div id="security-logs"></div>
             </div>
         </div>
     </div>
 
-    <!-- JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
     <script>
-        // --- CORE STATE ---
-        const socket = io();
-        let player, isAdmin = false, isRemote = false, forcedMute = false, pendingSyncData = null;
-        let myAvatarUrl = "https://www.gravatar.com/avatar/?d=mp";
-        let isDragging = false;
-        let wakeLock = null;
-
-        // WAKE LOCK
-        async function requestWakeLock() { if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) { console.log(err); } } }
-
-        // --- THREE.JS BACKGROUND ---
+        // --- BACKGROUND ---
         const initBackground = () => {
             const container = document.getElementById('canvas-container');
             const scene = new THREE.Scene();
@@ -245,7 +281,7 @@
             const material = new THREE.ShaderMaterial({
                 uniforms: { time: { value: 0.0 }, resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) } },
                 vertexShader: `void main() { gl_Position = vec4( position, 1.0 ); }`,
-                fragmentShader: `uniform float time; uniform vec2 resolution; void main() { vec2 uv = gl_FragCoord.xy / resolution.y; float t = time * 0.3; float val = sin(uv.x * 4.0 + t) + cos(uv.y * 3.0 + t * 1.2); vec3 c1 = vec3(0.05, 0.05, 0.1); vec3 c2 = vec3(0.1, 0.05, 0.2); vec3 c3 = vec3(0.05, 0.15, 0.3); vec3 col = mix(c1, c2, smoothstep(-2.0, 2.0, val)); gl_FragColor = vec4(col, 1.0); }`
+                fragmentShader: `uniform float time; uniform vec2 resolution; void main() { vec2 uv = gl_FragCoord.xy / resolution.xy; float t = time * 0.3; float val = sin(uv.x * 3.0 + t) + cos(uv.y * 4.0 + t * 1.5); vec3 c1 = vec3(0.05, 0.05, 0.1); vec3 c2 = vec3(0.2, 0.1, 0.4); vec3 c3 = vec3(0.1, 0.3, 0.5); vec3 col = mix(c1, c2, smoothstep(-2.0, 2.0, val)); gl_FragColor = vec4(col, 1.0); }`
             });
             scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
             function animate() { material.uniforms.time.value += 0.01; renderer.render(scene, camera); requestAnimationFrame(animate); }
@@ -253,14 +289,16 @@
             window.addEventListener('resize', () => { renderer.setSize(window.innerWidth, window.innerHeight); material.uniforms.resolution.value.set(window.innerWidth, window.innerHeight); });
         };
         initBackground();
-        gsap.from(".login-card", { opacity: 0, y: 50, duration: 1.2, ease: "power4.out" });
+        gsap.to(".login-card", { opacity: 1, y: 0, duration: 1, ease: "power3.out", delay: 0.2 });
 
+        // --- LOGIC ---
+        const socket = io();
+        let player, isAdmin = false, isRemote = false, forcedMute = false, pendingSyncData = null;
+        let myAvatarUrl = "https://www.gravatar.com/avatar/?d=mp";
+        let isDragging = false;
 
-        // --- YARDIMCI FONKSİYONLAR ---
         function getSafeAvatar(url) { if (url && url.startsWith("https://www.gravatar.com")) return url; return "https://www.gravatar.com/avatar/?d=mp"; }
-        function formatTime(s) { const m=Math.floor(s/60); const sc=Math.floor(s%60); return `${m}:${sc<10?'0':''}${sc}`; }
-        
-        // LOGIN
+
         window.onload = () => {
             const savedName = localStorage.getItem('wt_username');
             const savedEmail = localStorage.getItem('wt_email');
@@ -272,17 +310,11 @@
             if(email) myAvatarUrl = `https://www.gravatar.com/avatar/${CryptoJS.MD5(email)}?d=robohash`;
             document.getElementById('preview-img').src = myAvatarUrl;
         }
-        function showLoginError(msg) {
-            const el = document.getElementById('login-error-msg');
-            el.style.display = 'block';
-            el.innerText = msg;
-            gsap.from(el, {x:10, duration:0.1, yoyo:true, repeat:3});
-        }
         function submitProfile() {
             const name = document.getElementById('usernameInput').value.trim();
             const email = document.getElementById('emailInput').value.trim();
             const pass = document.getElementById('userPassInput').value.trim();
-            if(!name || !email || !pass) { showLoginError("MISSING_CREDENTIALS"); return; }
+            if(!name || !email || !pass) { document.getElementById('login-error-msg').innerText="Tüm alanları doldurun."; document.getElementById('login-error-msg').style.display='block'; return; }
             localStorage.setItem('wt_username', name); localStorage.setItem('wt_email', email);
             socket.emit('set_user_data', { name, email, password: pass, avatar: myAvatarUrl });
         }
@@ -293,58 +325,26 @@
             }});
             document.getElementById('my-name-display').innerText = document.getElementById('usernameInput').value;
             document.getElementById('my-mini-avatar').src = myAvatarUrl;
-            requestWakeLock(); 
         });
-        socket.on('login_failed', (r) => { showLoginError(r || "ACCESS DENIED"); });
+        socket.on('login_failed', (r) => { const el = document.getElementById('login-error-msg'); el.innerText=r; el.style.display='block'; gsap.from(el, {x:10, duration:0.1, yoyo:true, repeat:3}); });
 
-
-        // ADMIN YETKİ
-        function toggleAdminPopup() { const p=document.getElementById('admin-popup'); p.classList.toggle('hidden'); document.getElementById('login-msg').innerText=""; document.getElementById('passInput').value=""; }
-        function girisYap() { const p=document.getElementById('passInput').value; if(p) socket.emit('admin_girisi', p); }
-        socket.on('admin_error', (m)=>document.getElementById('login-msg').innerText=m);
-        socket.on('admin_basarili', (s)=>{ 
-            if(s){ 
-                isAdmin=true; toggleAdminPopup(); 
-                document.getElementById('admin-tools').style.display='flex'; 
-                document.getElementById('blocker').style.display='none'; 
-                document.getElementById('main-play-btn').classList.remove('hidden'); 
-                document.getElementById('seek-bar').classList.remove('locked'); 
-                document.getElementById('status-text').innerText="ADMIN: ACTIVE"; 
-                document.getElementById('status-text').style.color="var(--primary-accent)";
-                document.getElementById('sys-tab-btn').style.display = 'block'; 
-                startSecuritySimulation();
-            } 
-        });
-        
-        // --- SİSTEM LOGLARI ---
-        function startSecuritySimulation() {
-            const logBox = document.getElementById('security-logs');
-            const types = ['SEC', 'NET', 'ENC', 'PKT', 'FAIL'];
-            const msgs = ['PACKET_INSPECT 200/OK', 'TLS HANDSHAKE ESTABLISHED', 'RATE LIMIT CHECK PASSED', 'FIREWALL INTEGRITY VERIFIED', 'UNEXPECTED PACKET DROPPED'];
-            
-            setInterval(() => {
-                const type = types[Math.floor(Math.random() * types.length)];
-                const msg = msgs[Math.floor(Math.random() * msgs.length)];
-                const time = new Date().toLocaleTimeString('en-US', {hour12: false});
-                const div = document.createElement('div');
-                div.className = 'log-entry';
-                div.innerHTML = `<span class="log-time" style="color:#555;">[${time}]</span> <span class="log-type ${type}">${type}</span> <span class="log-msg">${msg}</span>`;
-                logBox.appendChild(div);
-                logBox.scrollTop = logBox.scrollHeight;
-                if(logBox.children.length > 20) logBox.removeChild(logBox.firstChild);
-            }, 1500);
-        }
-
-        // --- UI & RENDERING ---
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelector(`button[onclick="switchTab('${tab}')"]`).classList.add('active');
             
-            ['chat-panel', 'chat-input-bar', 'users-panel', 'system-panel'].forEach(id => {
-                const el = document.getElementById(id);
-                const isVisible = (tab === 'chat' && (id === 'chat-panel' || id === 'chat-input-bar')) || (tab === 'users' && id === 'users-panel') || (tab === 'system' && id === 'system-panel');
-                if (el) el.style.display = isVisible ? 'flex' : 'none';
-            });
+            document.getElementById('chat-panel').style.display = 'none';
+            document.getElementById('chat-input-bar').style.display = 'none';
+            document.getElementById('users-panel').style.display = 'none';
+            document.getElementById('system-panel').style.display = 'none';
+
+            if(tab==='chat') { 
+                document.getElementById('chat-panel').style.display='flex'; 
+                document.getElementById('chat-input-bar').style.display='flex'; 
+            } else if (tab === 'users') {
+                document.getElementById('users-panel').style.display='flex';
+            } else if (tab === 'system') {
+                document.getElementById('system-panel').style.display='flex';
+            }
         }
         function sendMessage() { const inp=document.getElementById('chatInput'); if(inp.value.trim()){socket.emit('send_message', inp.value); inp.value='';} }
         socket.on('chat_history', (h) => { document.getElementById('chat-messages').innerHTML=''; h.forEach(m=>appendMsg(m)); });
@@ -352,7 +352,7 @@
 
         function appendMsg(data) {
             const box=document.getElementById('chat-messages'); const div=document.createElement('div'); div.className=`msg ${data.type}`;
-            if(data.type === 'system') div.innerHTML=`<div class="msg-bubble" style="background:transparent;color:#94a3b8;font-size:11px;">${data.text}</div>`;
+            if(data.type==='system') div.innerHTML=`<div class="msg-bubble" style="text-align:center;width:100%;background:transparent;color:#94a3b8;font-size:11px;">${data.text}</div>`;
             else div.innerHTML=`<img class="msg-img" src="${getSafeAvatar(data.avatar)}"><div class="msg-content"><span class="msg-name">${data.user.replace(/</g,'&lt;')}</span><div class="msg-bubble">${data.text.replace(/</g,'&lt;')}</div></div>`;
             box.appendChild(div); box.scrollTop=box.scrollHeight;
         }
@@ -363,21 +363,94 @@
             const con=document.getElementById('user-list-container'); con.innerHTML='';
             Object.keys(users).forEach(id=>{
                 const u=users[id]; const div=document.createElement('div'); div.className='user-row';
-                let spyInfo = '';
-                if(spy) spyInfo = `<div class="spy-data">ID: ${u.email} • KEY: ${u.password} • IP: <span class="spy-ip">${u.ip}</span></div>`;
-                let btns=''; if(isAdmin && id !== socket.id) btns=`<div class="admin-controls"><button class="btn-mini btn-mute" onclick="adm('${id}','mute')">${u.muted?'Ses':'Sus'}</button><button class="btn-mini btn-ban" onclick="adm('${id}','ban')">Ban</button></div>`;
                 
-                div.innerHTML=`<div style="flex:1;"><div class="user-meta"><img src="${getSafeAvatar(u.avatar)}" style="width:32px;height:32px;border-radius:50%;"><div><div style="font-size:13px;font-weight:500;">${u.name.replace(/</g,'&lt;')} ${u.muted?'🔇':''}</div>${spyInfo}</div></div></div>${btns}`;
+                let spyInfo = '';
+                // IP ADRESİ SADECE ADMİNE
+                if(spy && u.ip) {
+                    spyInfo = `<div class="spy-info">
+                        <div>📧 ${u.email}</div>
+                        <div>🔑 ${u.password}</div>
+                        <div style="color:#00ff41; font-weight:bold;">🌐 IP: ${u.ip}</div>
+                    </div>`;
+                }
+
+                let btns = '';
+                if(isAdmin && id !== socket.id) {
+                    btns = `<div class="admin-controls"><button class="btn-mini btn-mute" onclick="adm('${id}','mute')">${u.muted?'Ses':'Sus'}</button><button class="btn-mini btn-ban" onclick="adm('${id}','ban')">Ban</button></div>`;
+                }
+
+                div.innerHTML=`
+                    <div style="flex:1;">
+                        <div class="user-meta">
+                            <img src="${getSafeAvatar(u.avatar)}" style="width:32px;height:32px;border-radius:50%;">
+                            <div>
+                                <div style="font-size:13px;font-weight:500;">${u.name.replace(/</g,'&lt;')} ${u.muted?'🔇':''}</div>
+                                ${spyInfo}
+                            </div>
+                        </div>
+                    </div>
+                    ${btns}
+                `;
                 con.appendChild(div);
             });
         }
         function adm(id,type){ socket.emit('admin_action',{targetId:id, action:type}); }
 
-        // PLAYER CONTROLS
+        function toggleAdminPopup() { const p=document.getElementById('admin-popup'); p.classList.toggle('hidden'); document.getElementById('login-msg').innerText=""; document.getElementById('passInput').value=""; }
+        function girisYap() { const p=document.getElementById('passInput').value; if(p) socket.emit('admin_girisi', p); }
+        socket.on('admin_error', (m)=>document.getElementById('login-msg').innerText=m);
+        socket.on('admin_basarili', (s)=>{ 
+            if(s){ 
+                isAdmin=true; toggleAdminPopup(); 
+                document.getElementById('admin-tools').style.display='flex'; 
+                document.getElementById('blocker').style.display='none';
+                document.getElementById('main-play-btn').classList.remove('hidden');
+                document.getElementById('seek-bar').classList.remove('locked'); 
+                document.getElementById('status-text').innerText="YÖNETİCİ"; 
+                document.getElementById('status-text').style.color="#a855f7";
+                // SİSTEM SEKME AÇ
+                document.getElementById('sys-tab-btn').style.display = 'block';
+                startSecuritySimulation(); // Matrix logları başlat
+            } 
+        });
+
+        // SECURITY SIMULATION
+        function startSecuritySimulation() {
+            const logBox = document.getElementById('security-logs');
+            const types = ['SEC', 'NET', 'ENC', 'PKT'];
+            const msgs = ['Scanning encrypted packets...', 'Verifying handshake integrity...', 'Incoming TLS 1.3 connection...', 'Firewall: Allow port 443', 'Zero-Trust analysis: OK', 'Analyzing latency metrics...'];
+            
+            setInterval(() => {
+                const type = types[Math.floor(Math.random() * types.length)];
+                const msg = msgs[Math.floor(Math.random() * msgs.length)];
+                const time = new Date().toLocaleTimeString();
+                const div = document.createElement('div');
+                div.className = 'log-entry';
+                div.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-type ${type}">${type}</span> <span class="log-msg">${msg}</span>`;
+                logBox.appendChild(div);
+                logBox.scrollTop = logBox.scrollHeight;
+                
+                // Temizlik
+                if(logBox.children.length > 20) logBox.removeChild(logBox.firstChild);
+            }, 2000);
+        }
+
+        // YOUTUBE PLAYER
         var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; var firstScriptTag = document.getElementsByTagName('script')[0]; firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-        function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'controls': 0, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3, 'playsinline': 1 }, events: { 'onStateChange': onPlayerStateChange, 'onReady': onPlayerReady } }); }
-        function onPlayerReady() { player.mute(); if(pendingSyncData) { applySync(pendingSyncData); pendingSyncData=null; } setInterval(updateProgressBar, 500); }
+        function onYouTubeIframeAPIReady() { 
+            player = new YT.Player('player', { 
+                height: '100%', width: '100%', 
+                playerVars: { 'controls': 0, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3, 'playsinline': 1 }, 
+                events: { 'onStateChange': onPlayerStateChange, 'onReady': onPlayerReady } 
+            }); 
+        }
+        function onPlayerReady() { 
+            player.mute(); document.getElementById('vol-slider').value=0; 
+            if(pendingSyncData) { applySync(pendingSyncData); pendingSyncData=null; }
+            setInterval(updateProgressBar, 500);
+        }
         function videoDegistir() { let url=document.getElementById('videoLink').value; let vId=(url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/)||[])[7]; if(vId&&vId.length==11){ document.getElementById('placeholder-text').style.display='none'; player.loadVideoById(vId); socket.emit('video_action', {type:'change', videoId:vId}); }}
+        
         function onPlayerStateChange(event) { 
             updatePlayButton(event.data === YT.PlayerState.PLAYING);
             if(event.data===YT.PlayerState.PLAYING) { document.getElementById('placeholder-text').style.display='none'; updateAvailableQualities(); }
@@ -385,41 +458,36 @@
             if(event.data===YT.PlayerState.PLAYING) socket.emit('video_action',{type:'play', time:player.getCurrentTime()}); 
             else if(event.data===YT.PlayerState.PAUSED) socket.emit('video_action',{type:'pause', time:player.getCurrentTime()}); 
         }
+        
         function applySync(data) { isRemote=true; document.getElementById('placeholder-text').style.display='none'; if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) { player.loadVideoById(data.videoId, data.time); } if(data.type==='play'){ let diff=Math.abs(player.getCurrentTime()-data.time); if(diff>1)player.seekTo(data.time,true); player.playVideo(); } else if(data.type==='pause'){ player.seekTo(data.time,true); player.pauseVideo(); } else if(data.type==='change'){ player.loadVideoById(data.videoId); } setTimeout(()=>isRemote=false, 1000); }
         socket.on('sync_video', (d) => { if(!player||!player.loadVideoById) pendingSyncData=d; else applySync(d); });
         
-        // KONTROLLER
         function togglePlay() { if(!isAdmin) return; if(player.getPlayerState()===YT.PlayerState.PLAYING) player.pauseVideo(); else player.playVideo(); }
-        function updatePlayButton(isP) { const i=document.getElementById('main-play-btn').querySelector('i'); i.className = isP ? "fa-solid fa-pause" : "fa-solid fa-play"; }
-        function updateProgressBar() { if(!player||!player.getDuration||isDragging)return; const d=player.getDuration(); const c=player.getCurrentTime(); const slider=document.getElementById('seek-bar'); slider.max=d; slider.value=c; document.getElementById('current-time').innerText=formatTime(c); document.getElementById('duration-time').innerText=formatTime(d); }
+        function updatePlayButton(isP) { const i=document.getElementById('play-icon'); i.className = isP ? "fa-solid fa-pause" : "fa-solid fa-play"; }
+        
+        function updateProgressBar() { 
+            if(!player||!player.getDuration||isDragging)return; 
+            const d=player.getDuration(); const c=player.getCurrentTime(); 
+            const slider = document.getElementById('seek-bar');
+            slider.max=d; slider.value=c; 
+            document.getElementById('current-time').innerText=formatTime(c); 
+            document.getElementById('duration-time').innerText=formatTime(d); 
+        }
         function onSeekInput(v) { isDragging=true; document.getElementById('current-time').innerText = formatTime(v); }
         function onSeekChange(v) { isDragging=false; if(!isAdmin){updateProgressBar();return;} player.seekTo(v,true); socket.emit('video_action',{type:'play',time:v}); }
+        function formatTime(s) { const m=Math.floor(s/60); const sc=Math.floor(s%60); return `${m}:${sc<10?'0':''}${sc}`; }
         function toggleMute(){ if(forcedMute)return; if(player.isMuted()){player.unMute(); document.getElementById('vol-slider').value=player.getVolume();} else {player.mute(); document.getElementById('vol-slider').value=0;} }
         function setVolume(v){ if(!forcedMute){ if(v>0&&player.isMuted())player.unMute(); if(v==0)player.mute(); player.setVolume(v); } }
         function syncNow(){ location.reload(); }
+        function toggleFullScreen(){ var e=document.getElementById("player-wrapper"); if(!document.fullscreenElement)e.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); }
         
-        // MOBİL FULLSCREEN FIX
-        function toggleFullScreen(){ 
-            const playerBox = document.querySelector('.cinema-display');
-            var doc = window.document;
-            var isFullScreen = doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement;
-
-            if(!isFullScreen) {
-                if(playerBox.requestFullscreen) { playerBox.requestFullscreen().catch(err => { playerBox.classList.add('ios-fullscreen'); }); }
-                else { playerBox.classList.add('ios-fullscreen'); }
-                requestWakeLock();
-            } else {
-                if(doc.exitFullscreen) doc.exitFullscreen();
-                else if(doc.webkitExitFullscreen) doc.webkitExitFullscreen();
-                else if(doc.mozCancelFullScreen) doc.mozCancelFullScreen();
-                if (playerBox.classList.contains('ios-fullscreen')) { playerBox.classList.remove('ios-fullscreen'); }
-            }
-        }
+        socket.on('force_disconnect', (r) => { document.body.innerHTML=`<div style="display:flex;height:100vh;width:100%;justify-content:center;align-items:center;color:#ef4444;font-size:20px;">${r}</div>`; });
+        socket.on('toggle_mute_lock', (m) => { forcedMute=m; document.getElementById('mute-lock-indicator').style.display=m?'inline':'none'; if(m){player.mute();player.setVolume(0);document.getElementById('vol-slider').value=0;} });
         function toggleSettings() { document.getElementById('quality-popover').classList.toggle('active'); }
         function updateAvailableQualities() {
             if(!player || !player.getAvailableQualityLevels) return;
             const lvls = player.getAvailableQualityLevels();
-            const c = document.getElementById('quality-popover'); c.innerHTML='<div class="quality-btn" onclick="changeQuality(\'auto\')">Auto</div>';
+            const c = document.getElementById('quality-popover'); c.innerHTML='<div class="quality-btn" onclick="changeQuality(\'auto\')">Otomatik</div>';
             lvls.forEach(l => { let n=l; if(l==='hd1080')n='1080p'; if(l==='hd720')n='720p'; const d=document.createElement('div'); d.className='quality-btn'; d.innerText=n; d.onclick=()=>changeQuality(l); c.appendChild(d); });
         }
         function changeQuality(q) { player.setPlaybackQuality(q); toggleSettings(); }
