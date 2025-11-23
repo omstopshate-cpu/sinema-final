@@ -1,305 +1,351 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>W.A.T.C.H. // SYSTEM_ROOT</title>
+    <title>WatchTogether // Studio</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
     
-    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syncopate:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
     <style>
-        /* --- 0.1% CSS RESET & VARIABLES --- */
+        /* --- 0.1% DESIGN TOKENS --- */
         :root {
-            --neon: #00ff41;
-            --neon-dim: rgba(0, 255, 65, 0.1);
-            --dark: #050505;
-            --grid: rgba(255, 255, 255, 0.05);
-            --glass: rgba(10, 10, 10, 0.6);
+            --bg-color: #08080b;
+            --glass-surface: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --primary-accent: #a855f7; /* Royal Purple */
+            --secondary-accent: #3b82f6; /* Ocean Blue */
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --radius-sm: 12px;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; cursor: none; /* Custom cursor logic */ }
+        * { box-sizing: border-box; outline: none; -webkit-font-smoothing: antialiased; }
 
         body {
-            background: var(--dark);
-            color: #e0e0e0;
-            font-family: 'Space Mono', monospace;
-            overflow: hidden;
-            height: 100vh;
-            width: 100vw;
+            margin: 0; overflow: hidden; background: var(--bg-color);
+            color: var(--text-main); font-family: 'Manrope', sans-serif;
+            display: flex; height: 100vh; user-select: none;
         }
 
-        /* --- CUSTOM CURSOR --- */
-        #cursor {
-            position: fixed; top: 0; left: 0; width: 20px; height: 20px;
-            border: 1px solid var(--neon); transform: translate(-50%, -50%) rotate(45deg);
-            pointer-events: none; z-index: 10000; transition: width 0.2s, height 0.2s;
-            mix-blend-mode: difference;
-        }
-        #cursor.hovered { width: 40px; height: 40px; background: var(--neon-dim); }
-
-        /* --- WEBGL CANVAS --- */
-        #gl-container {
+        /* --- WEBGL BACKGROUND --- */
+        #canvas-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 0; opacity: 0; /* GSAP will fade it in */
+            z-index: -1; pointer-events: none;
         }
-
-        /* --- NOISE / DITHER OVERLAY --- */
-        .scanlines {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
-            background-size: 100% 4px;
-            z-index: 9000; pointer-events: none; opacity: 0.6;
-        }
-        .noise {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
-            z-index: 8999; pointer-events: none; opacity: 0.4;
-        }
-
-        /* --- UI LAYOUT --- */
-        .ui-layer {
-            position: relative; z-index: 10; width: 100%; height: 100%;
-            display: flex; flex-direction: column; pointer-events: none;
-        }
-
-        /* HEADER */
-        header {
-            padding: 40px; display: flex; justify-content: space-between; align-items: flex-start;
-            pointer-events: auto;
-        }
-        .brand {
-            font-family: 'Syncopate', sans-serif; font-weight: 700; font-size: 24px;
-            text-transform: uppercase; letter-spacing: 2px; color: #fff;
-            text-shadow: 0 0 10px rgba(255,255,255,0.5);
-        }
-        .brand span { color: var(--neon); }
         
-        .status-cluster { text-align: right; font-size: 10px; color: #666; line-height: 1.6; }
-        .status-dot { display: inline-block; width: 8px; height: 8px; background: var(--neon); border-radius: 50%; margin-right: 5px; box-shadow: 0 0 10px var(--neon); animation: pulse 2s infinite; }
-
-        /* MAIN LOGIN CENTER (HERO) */
-        .center-stage {
-            flex: 1; display: flex; align-items: center; justify-content: center;
-            pointer-events: auto; perspective: 1000px;
+        /* --- FILM GRAIN (DITHER) OVERLAY --- */
+        .noise-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; pointer-events: none; opacity: 0.07;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E");
         }
 
-        .login-terminal {
-            width: 400px;
-            background: rgba(5, 5, 5, 0.8);
-            border: 1px solid #333;
+        /* --- ORTAK CAM STİLİ (GLASSMORPHISM) --- */
+        .glass-panel {
+            background: var(--glass-surface);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+
+        /* --- GİRİŞ EKRANI (LOGIN) --- */
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 8, 0.6); /* Hafif karartma */
             backdrop-filter: blur(10px);
-            padding: 2px; /* For border gradient effect simulated via pseudo */
-            position: relative;
-            transform-style: preserve-3d;
-            opacity: 0; /* GSAP handles this */
+            z-index: 9999; display: flex; justify-content: center; align-items: center;
+        }
+        .hidden { display: none !important; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
+
+        .login-card {
+            width: 400px; padding: 40px; border-radius: var(--radius-lg);
+            text-align: center; transform: translateY(20px); opacity: 0; /* GSAP ile gelecek */
         }
 
-        /* Cyber Border Effect */
-        .terminal-inner {
-            background: #080808; padding: 40px; position: relative;
-            border: 1px solid var(--neon-dim);
-            overflow: hidden;
-        }
-        .corner {
-            position: absolute; width: 10px; height: 10px; border: 2px solid var(--neon);
-            transition: 0.3s;
-        }
-        .tl { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-        .tr { top: 0; right: 0; border-left: 0; border-bottom: 0; }
-        .bl { bottom: 0; left: 0; border-right: 0; border-top: 0; }
-        .br { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-
-        .input-group { margin-bottom: 25px; position: relative; }
-        .label-glitch {
-            font-size: 10px; color: var(--neon); margin-bottom: 8px; display: block;
-            text-transform: uppercase; letter-spacing: 1px;
+        .brand-logo {
+            font-size: 24px; font-weight: 700; margin-bottom: 10px;
+            background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
         }
         
-        input {
-            width: 100%; background: transparent; border: none; border-bottom: 1px solid #333;
-            color: #fff; font-family: 'Space Mono', monospace; font-size: 16px; padding: 10px 0;
-            outline: none; transition: 0.3s;
+        .avatar-wrapper {
+            width: 80px; height: 80px; margin: 20px auto; padding: 3px;
+            background: linear-gradient(135deg, var(--primary-accent), var(--secondary-accent));
+            border-radius: 50%;
         }
-        input:focus { border-bottom-color: var(--neon); text-shadow: 0 0 8px var(--neon-dim); }
-        input::placeholder { color: #333; }
-
-        .btn-cyber {
-            width: 100%; padding: 15px; background: var(--neon-dim);
-            border: 1px solid var(--neon); color: var(--neon);
-            font-family: 'Syncopate', sans-serif; font-weight: 700; letter-spacing: 2px;
-            cursor: none; transition: 0.3s; position: relative; overflow: hidden;
-            text-transform: uppercase; font-size: 12px;
-        }
-        .btn-cyber:hover { background: var(--neon); color: #000; box-shadow: 0 0 30px var(--neon); }
-        
-        /* Error Msg */
-        #error-log {
-            color: #ff0f39; font-size: 10px; margin-top: 15px; min-height: 15px;
-            font-family: 'Space Mono'; text-transform: uppercase;
+        .avatar-wrapper img {
+            width: 100%; height: 100%; border-radius: 50%;
+            object-fit: cover; border: 3px solid var(--bg-color);
         }
 
-        /* --- APP INTERFACE (Hidden Initially) --- */
-        #app-interface {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 20; display: none; flex-direction: column; pointer-events: none;
+        .input-field {
+            width: 100%; padding: 16px; margin-bottom: 12px;
+            background: rgba(255,255,255,0.05); border: 1px solid transparent;
+            border-radius: var(--radius-md); color: #fff; font-size: 14px; font-family: inherit;
+            transition: all 0.3s ease;
         }
-        .app-grid {
-            display: grid; grid-template-columns: 1fr 350px; height: 100%;
-            padding: 100px 40px 40px 40px; gap: 20px; pointer-events: auto;
+        .input-field:focus {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.2);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.1);
+        }
+        .input-field::placeholder { color: rgba(255,255,255,0.3); }
+
+        .btn-primary {
+            width: 100%; padding: 16px; margin-top: 10px;
+            background: #fff; color: #000;
+            border: none; border-radius: var(--radius-md);
+            font-weight: 700; font-size: 14px; cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .btn-primary:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 30px rgba(255,255,255,0.2);
+        }
+
+        /* --- ANA ARAYÜZ --- */
+        .app-container {
+            display: flex; width: 100%; height: 100%; z-index: 1; opacity: 0; /* GSAP */
+            padding: 20px; gap: 20px;
+        }
+
+        /* SOL: VİDEO ALANI */
+        .main-stage {
+            flex: 1; display: flex; flex-direction: column; gap: 20px;
+            border-radius: var(--radius-lg); overflow: hidden;
+        }
+
+        /* Video Player Kapsayıcısı */
+        .cinema-display {
+            flex: 1; position: relative; border-radius: var(--radius-lg);
+            overflow: hidden; box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+            background: #000; border: 1px solid var(--glass-border);
         }
         
-        /* Video Frame */
-        .video-frame {
-            border: 1px solid #333; background: #000; position: relative;
-            display: flex; flex-direction: column;
+        #player-wrapper { width: 100%; height: 100%; position: absolute; }
+        #player { width: 100%; height: 100%; }
+        #blocker { position: absolute; width: 100%; height: 100%; z-index: 10; }
+        
+        /* Boş Ekran Yazısı */
+        #placeholder-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: rgba(255,255,255,0.2); font-weight: 300; letter-spacing: 1px;
         }
-        .video-header {
-            padding: 10px 20px; background: #111; border-bottom: 1px solid #333;
+
+        /* Üst Bar (Navigation) */
+        .nav-bar {
             display: flex; justify-content: space-between; align-items: center;
+            padding: 0 10px;
         }
-        #player-embed { flex: 1; position: relative; }
-        #player { width: 100%; height: 100%; position: absolute; }
-        #blocker { width: 100%; height: 100%; position: absolute; z-index: 10; }
+        .user-pill {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 16px; border-radius: 50px;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05);
+        }
+        .user-pill img { width: 24px; height: 24px; border-radius: 50%; }
+        
+        .admin-trigger {
+            width: 40px; height: 40px; border-radius: 50%; border: none;
+            background: transparent; color: rgba(255,255,255,0.3);
+            cursor: pointer; transition: 0.3s;
+        }
+        .admin-trigger:hover { color: #fff; background: rgba(255,255,255,0.05); }
 
-        .video-controls {
-            padding: 15px; border-top: 1px solid #333; background: #0a0a0a;
-            display: flex; gap: 20px; align-items: center;
+        /* Alt Kontroller (Dock) */
+        .control-dock {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 30px; border-radius: 50px;
+            margin-bottom: 10px;
+        }
+        
+        .slider-group { display: flex; align-items: center; gap: 15px; color: #fff; }
+        input[type=range] {
+            -webkit-appearance: none; background: transparent; width: 100px; cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%;
+            background: #fff; margin-top: -4px; box-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
 
-        /* Sidebar */
-        .cyber-sidebar {
-            border: 1px solid #333; background: rgba(5,5,5,0.9);
-            backdrop-filter: blur(10px); display: flex; flex-direction: column;
+        .action-btn {
+            background: transparent; border: 1px solid rgba(255,255,255,0.1);
+            color: #fff; padding: 8px 16px; border-radius: 12px;
+            font-size: 12px; cursor: pointer; transition: 0.3s;
+            display: flex; align-items: center; gap: 6px;
         }
-        .tab-headers { display: flex; border-bottom: 1px solid #333; }
+        .action-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); }
+
+        /* SAĞ: SIDEBAR (Sohbet & Liste) */
+        .sidebar {
+            width: 360px; display: flex; flex-direction: column;
+            border-radius: var(--radius-lg); overflow: hidden;
+        }
+        
+        .tabs { display: flex; padding: 5px; gap: 5px; border-bottom: 1px solid var(--glass-border); }
         .tab-btn {
-            flex: 1; padding: 15px; background: transparent; border: none;
-            color: #666; font-family: 'Space Mono'; cursor: none; transition: 0.3s;
-            border-bottom: 2px solid transparent;
+            flex: 1; padding: 12px; border: none; background: transparent;
+            color: var(--text-muted); font-weight: 500; font-size: 13px;
+            cursor: pointer; border-radius: var(--radius-sm); transition: 0.3s;
         }
-        .tab-btn.active { color: var(--neon); border-bottom-color: var(--neon); }
+        .tab-btn.active { background: rgba(255,255,255,0.05); color: #fff; }
+
+        .content-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
         
-        .chat-zone { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .chat-msg { font-size: 12px; padding: 8px; border-left: 2px solid #333; background: rgba(255,255,255,0.02); }
-        .chat-msg b { color: var(--neon); }
+        /* Chat Balonları */
+        .msg { display: flex; gap: 10px; align-items: flex-end; animation: fadeIn 0.3s ease; }
+        .msg-img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+        .msg-bubble {
+            background: rgba(255,255,255,0.05); padding: 10px 14px;
+            border-radius: 18px; border-bottom-left-radius: 4px;
+            font-size: 13px; line-height: 1.4; max-width: 85%;
+            color: #e0e0e0;
+        }
+        .msg-name { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; display: block; }
         
-        .admin-zone { padding: 20px; border-top: 1px solid #333; }
+        .msg.system { justify-content: center; }
+        .msg.system .msg-bubble { background: transparent; color: var(--text-muted); font-size: 11px; border: 1px solid var(--glass-border); border-radius: 20px; padding: 4px 12px; }
+
+        .input-bar { padding: 15px; border-top: 1px solid var(--glass-border); display: flex; gap: 10px; }
+        .chat-input {
+            flex: 1; background: rgba(0,0,0,0.2); border: none; padding: 12px;
+            border-radius: 50px; color: #fff; font-size: 13px;
+        }
+        .send-btn {
+            width: 40px; height: 40px; border-radius: 50%; border: none;
+            background: #fff; color: #000; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+            transition: 0.2s;
+        }
+        .send-btn:hover { transform: scale(1.1); }
+
+        /* User List Items */
+        .user-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px; background: rgba(255,255,255,0.03);
+            border-radius: var(--radius-md); transition: 0.2s;
+        }
+        .user-row:hover { background: rgba(255,255,255,0.06); }
+        .user-meta { display: flex; align-items: center; gap: 12px; }
         
         /* Admin Modal */
-        #admin-modal {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: #000; border: 1px solid var(--neon); padding: 40px;
-            z-index: 50; display: none; text-align: center; box-shadow: 0 0 50px rgba(0,255,65,0.2);
-        }
-
-        @keyframes pulse { 0% {opacity: 0.5;} 50% {opacity: 1;} 100% {opacity: 0.5;} }
+        .admin-modal-content { width: 300px; text-align: center; }
         
-        /* Admin Controls */
-        .admin-btn { font-size: 10px; padding: 2px 5px; border: 1px solid #444; color: #fff; background: #000; margin-left: 5px; }
-        .mute-btn:hover { border-color: orange; color: orange; }
-        .ban-btn:hover { border-color: red; color: red; }
-
+        /* Admin Panel (Video Source) */
+        #admin-tools {
+            display: none; padding: 15px; background: rgba(168, 85, 247, 0.1);
+            border: 1px solid rgba(168, 85, 247, 0.2); margin: 0 20px 20px 20px;
+            border-radius: var(--radius-md); gap: 10px; align-items: center;
+        }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Responsive */
+        @media (max-width: 850px) { .app-container { flex-direction: column; padding: 10px; } .sidebar { width: 100%; height: 300px; } }
     </style>
 </head>
 <body>
 
-    <div id="cursor"></div>
-    <div class="scanlines"></div>
-    <div class="noise"></div>
-    <div id="gl-container"></div>
+    <div id="canvas-container"></div>
+    <div class="noise-overlay"></div>
 
-    <div class="ui-layer">
-        <header>
-            <div class="brand">J.A.R.V.I.S. <span>/CORE</span></div>
-            <div class="status-cluster">
-                <div><span class="status-dot"></span> SYSTEM: ONLINE</div>
-                <div>SECURE_CONNECTION: TLS 1.3</div>
-                <div id="time-display">00:00:00</div>
+    <div id="login-overlay" class="overlay">
+        <div class="login-card glass-panel">
+            <div class="brand-logo">WatchTogether</div>
+            <p style="color:var(--text-muted); font-size:13px; margin-bottom:20px;">Sinematik Deneyim</p>
+            
+            <div class="avatar-wrapper">
+                <img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp">
             </div>
-        </header>
+            
+            <input type="text" id="usernameInput" class="input-field" placeholder="İsminiz" maxlength="15">
+            <input type="email" id="emailInput" class="input-field" placeholder="E-Posta (Zorunlu)" oninput="updateAvatarPreview()">
+            <input type="password" id="userPassInput" class="input-field" placeholder="Oda Şifresi" maxlength="20">
+            
+            <button class="btn-primary" onclick="submitProfile()">Odaya Katıl</button>
+            <p id="login-error-msg" style="color:#ef4444; font-size:12px; margin-top:15px; display:none;"></p>
+        </div>
+    </div>
 
-        <div class="center-stage" id="login-screen">
-            <div class="login-terminal">
-                <div class="terminal-inner">
-                    <span class="corner tl"></span><span class="corner tr"></span>
-                    <span class="corner bl"></span><span class="corner br"></span>
-                    
-                    <div style="text-align:center; margin-bottom:30px;">
-                        <img id="avatar-preview" src="https://www.gravatar.com/avatar/?d=mp" style="width:60px; height:60px; border-radius:50%; border:2px solid var(--neon); padding:2px;">
-                    </div>
+    <div id="admin-popup" class="overlay hidden">
+        <div class="login-card glass-panel admin-modal-content">
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                <span style="font-weight:700;">Yönetici Erişimi</span>
+                <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="toggleAdminPopup()"></i>
+            </div>
+            <input type="password" id="passInput" class="input-field" placeholder="Master Şifre">
+            <button class="btn-primary" onclick="girisYap()">Doğrula</button>
+            <p id="login-msg" style="color:#ef4444; font-size:12px; margin-top:10px;"></p>
+        </div>
+    </div>
 
-                    <div class="input-group">
-                        <label class="label-glitch">CODENAME</label>
-                        <input type="text" id="usernameInput" placeholder="ENTER_ID" autocomplete="off" maxlength="15">
-                    </div>
-                    <div class="input-group">
-                        <label class="label-glitch">SECURE_MAIL</label>
-                        <input type="email" id="emailInput" placeholder="USER@DOMAIN" autocomplete="off" oninput="updateAvatarPreview()">
-                    </div>
-                    <div class="input-group">
-                        <label class="label-glitch">ACCESS_KEY</label>
-                        <input type="password" id="userPassInput" placeholder="••••••••">
-                    </div>
+    <div class="app-container">
+        
+        <div class="main-stage">
+            <div class="nav-bar">
+                <div class="user-pill glass-panel">
+                    <img id="my-mini-avatar" src="">
+                    <span id="my-name-display" style="font-size:13px; font-weight:500;">Misafir</span>
+                </div>
+                
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span id="status-text" style="font-size:12px; color:rgba(255,255,255,0.4);">İZLEYİCİ</span>
+                    <button class="admin-trigger" onclick="toggleAdminPopup()"><i class="fa-solid fa-gear"></i></button>
+                </div>
+            </div>
 
-                    <button class="btn-cyber" onclick="submitProfile()">INITIALIZE UPLINK</button>
-                    <div id="error-log"></div>
+            <div id="admin-tools">
+                <input type="text" id="videoLink" class="input-field" style="margin:0; background:rgba(0,0,0,0.2);" placeholder="YouTube Linki Yapıştır...">
+                <button class="action-btn" style="background:#fff; color:#000; border:none; font-weight:700;" onclick="videoDegistir()">YAYINLA</button>
+            </div>
+
+            <div class="cinema-display glass-panel">
+                <div id="placeholder-text">YAYIN BEKLENİYOR</div>
+                <div id="blocker"></div>
+                <div id="player-wrapper"><div id="player"></div></div>
+            </div>
+
+            <div class="control-dock glass-panel">
+                <div class="slider-group">
+                    <i id="mute-icon" class="fa-solid fa-volume-high" style="cursor:pointer; width:20px;" onclick="toggleMute()"></i>
+                    <input type="range" id="vol-slider" min="0" max="100" value="100" oninput="setVolume(this.value)">
+                    <span id="mute-lock-indicator" style="display:none; color:#ef4444; font-size:10px; font-weight:700;">KİLİTLİ</span>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button class="action-btn" onclick="syncNow()"><i class="fa-solid fa-rotate"></i> Senkron</button>
+                    <button class="action-btn" onclick="toggleFullScreen()"><i class="fa-solid fa-expand"></i> Tam Ekran</button>
                 </div>
             </div>
         </div>
 
-        <div id="admin-modal">
-            <h3 style="color:var(--neon); font-family:'Syncopate'; margin-bottom:20px;">OVERRIDE</h3>
-            <input type="password" id="adminPassInput" placeholder="ROOT_PASSWORD" style="text-align:center; margin-bottom:20px;">
-            <button class="btn-cyber" onclick="verifyAdmin()">AUTHORIZE</button>
-            <div class="close-modal" onclick="toggleAdminModal()" style="margin-top:10px; font-size:10px; text-decoration:underline;">CANCEL</div>
-        </div>
+        <div class="sidebar glass-panel">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('chat')">Sohbet</button>
+                <button class="tab-btn" onclick="switchTab('users')">İzleyiciler</button>
+            </div>
 
-        <div id="app-interface">
-            <div class="app-grid">
-                <div class="video-frame">
-                    <div class="video-header">
-                        <div id="video-status" style="color:var(--neon); font-size:12px;">● STREAM_ACTIVE</div>
-                        <div style="display:flex; gap:15px;">
-                            <div id="my-name-display" style="font-size:12px;">GUEST</div>
-                            <div id="admin-trigger" onclick="toggleAdminModal()" style="color:#666; font-size:12px;">[ADMIN]</div>
-                        </div>
-                    </div>
-                    <div id="player-embed">
-                        <div id="placeholder-text">WAITING FOR SIGNAL...</div>
-                        <div id="blocker"></div>
-                        <div id="player"></div>
-                    </div>
-                    <div class="video-controls" id="admin-controls-bar" style="display:none;">
-                        <input type="text" id="videoLink" placeholder="YOUTUBE_URL" style="flex:1;">
-                        <button class="btn-cyber" style="width:auto; padding:10px 30px;" onclick="videoDegistir()">TRANSMIT</button>
-                    </div>
-                    <div class="video-controls">
-                        <i class="fa-solid fa-volume-high" onclick="toggleMute()" style="color:#666;"></i>
-                        <input type="range" id="vol-slider" min="0" max="100" value="0" oninput="setVolume(this.value)" style="width:100px;">
-                        <button class="btn-cyber" style="width:auto; padding: 5px 10px;" onclick="syncNow()">SYNC</button>
-                        <button class="btn-cyber" style="width:auto; padding: 5px 10px;" onclick="toggleFullScreen()">EXPAND</button>
-                    </div>
-                </div>
+            <div id="chat-panel" class="content-area">
+                <div id="chat-messages"></div>
+            </div>
+            
+            <div class="input-bar" id="chat-input-bar">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Bir şeyler yaz..." onkeypress="if(event.key==='Enter') sendMessage()">
+                <button class="send-btn" onclick="sendMessage()"><i class="fa-solid fa-arrow-up"></i></button>
+            </div>
 
-                <div class="cyber-sidebar">
-                    <div class="tab-headers">
-                        <button class="tab-btn active" onclick="switchTab('chat')">LOGS</button>
-                        <button class="tab-btn" onclick="switchTab('users')">NODES</button>
-                    </div>
-                    
-                    <div id="chat-panel" class="chat-zone">
-                        <div id="chat-messages"></div>
-                    </div>
-                    
-                    <div id="users-panel" class="chat-zone" style="display:none;">
-                        <div id="user-list-container"></div>
-                    </div>
-
-                    <div class="admin-zone">
-                        <input type="text" id="chatInput" placeholder="Send command..." onkeypress="if(event.key==='Enter') sendMessage()">
-                    </div>
-                </div>
+            <div id="users-panel" class="content-area" style="display:none;">
+                <div id="user-list-container"></div>
             </div>
         </div>
     </div>
@@ -307,122 +353,112 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
     <script>
-        // --- CUSTOM CURSOR ---
-        const cursor = document.getElementById('cursor');
-        document.addEventListener('mousemove', e => {
-            cursor.style.left = e.clientX + 'px';
-            cursor.style.top = e.clientY + 'px';
-        });
-        document.querySelectorAll('button, input').forEach(el => {
-            el.addEventListener('mouseenter', () => cursor.classList.add('hovered'));
-            el.addEventListener('mouseleave', () => cursor.classList.remove('hovered'));
-        });
-
-        // --- THREE.JS BACKGROUND (Digital Terrain) ---
-        const initThree = () => {
-            const container = document.getElementById('gl-container');
+        // --- 1. ARKA PLAN (THREE.JS FLUID SHADER) ---
+        // Lüks ve sakinleştirici bir arka plan efekti
+        const initBackground = () => {
+            const container = document.getElementById('canvas-container');
             const scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x050505, 0.0025); // Distance fade
-
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 5;
-            camera.position.y = 3;
-            camera.rotation.x = -0.5;
-
-            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+            const renderer = new THREE.WebGLRenderer({ alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             container.appendChild(renderer.domElement);
 
-            // Grid Terrain
-            const geometry = new THREE.PlaneGeometry(100, 100, 40, 40);
-            const material = new THREE.MeshBasicMaterial({ 
-                color: 0x00ff41, 
-                wireframe: true,
-                transparent: true,
-                opacity: 0.15
+            const fragmentShader = `
+                uniform float time;
+                uniform vec2 resolution;
+                
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / resolution.xy;
+                    
+                    // Slow moving blobs of color
+                    float t = time * 0.5;
+                    
+                    float x = uv.x;
+                    float y = uv.y;
+                    
+                    float v1 = sin(x * 5.0 + t);
+                    float v2 = cos(y * 5.0 + t * 1.5);
+                    float v3 = sin((x + y) * 5.0 + t * 0.5);
+                    
+                    float val = v1 + v2 + v3;
+                    
+                    // Deep Midnight Blue & Soft Purple Palette
+                    vec3 color1 = vec3(0.05, 0.05, 0.1); // Dark base
+                    vec3 color2 = vec3(0.2, 0.1, 0.4);   // Purple
+                    vec3 color3 = vec3(0.1, 0.3, 0.5);   // Blue
+                    
+                    vec3 finalColor = mix(color1, color2, smoothstep(-2.0, 2.0, val));
+                    finalColor = mix(finalColor, color3, smoothstep(-1.0, 1.0, val * 0.5));
+                    
+                    gl_FragColor = vec4(finalColor, 1.0);
+                }
+            `;
+
+            const material = new THREE.ShaderMaterial({
+                uniforms: { time: { value: 0.0 }, resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) } },
+                vertexShader: `void main() { gl_Position = vec4( position, 1.0 ); }`,
+                fragmentShader: fragmentShader
             });
-            const plane = new THREE.Mesh(geometry, material);
-            plane.rotation.x = -Math.PI / 2;
+
+            const plane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
             scene.add(plane);
 
-            // Particles
-            const particlesGeom = new THREE.BufferGeometry();
-            const particlesCount = 700;
-            const posArray = new Float32Array(particlesCount * 3);
-            for(let i = 0; i < particlesCount * 3; i++) {
-                posArray[i] = (Math.random() - 0.5) * 50;
-            }
-            particlesGeom.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-            const particlesMat = new THREE.PointsMaterial({
-                size: 0.05, color: 0x00ff41, transparent: true, opacity: 0.5
-            });
-            const particlesMesh = new THREE.Points(particlesGeom, particlesMat);
-            scene.add(particlesMesh);
-
-            // Animate
-            let time = 0;
-            const animate = () => {
-                requestAnimationFrame(animate);
-                time += 0.005;
-                
-                // Move plane to simulate speed
-                plane.position.z = (time * 10) % 2; 
-                
-                // Wavy terrain effect
-                const positionAttribute = geometry.getAttribute('position');
-                for ( let i = 0; i < positionAttribute.count; i ++ ) {
-                    const x = positionAttribute.getX( i );
-                    const y = positionAttribute.getY( i ); // Actually Z in world space before rotation
-                    // Simple wave
-                    positionAttribute.setZ( i, Math.sin( x * 0.5 + time ) * 0.5 + Math.cos( y * 0.3 + time ) * 0.5 );
-                }
-                positionAttribute.needsUpdate = true;
-
+            function animate() {
+                material.uniforms.time.value += 0.01;
                 renderer.render(scene, camera);
-            };
+                requestAnimationFrame(animate);
+            }
             animate();
+            window.addEventListener('resize', () => { 
+                renderer.setSize(window.innerWidth, window.innerHeight); 
+                material.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
+            });
+        };
+        initBackground();
 
-            // Intro Animation
-            gsap.to('#gl-container', { opacity: 1, duration: 2 });
-            gsap.to('.login-terminal', { opacity: 1, rotateX: 0, duration: 1.5, ease: "power4.out", delay: 0.5 });
-        }
-        initThree();
+        // --- GİRİŞ ANİMASYONU (GSAP) ---
+        gsap.to(".login-card", { opacity: 1, y: 0, duration: 1, ease: "power3.out", delay: 0.2 });
 
-        // --- TIME DISPLAY ---
-        setInterval(() => {
-            const now = new Date();
-            document.getElementById('time-display').innerText = now.toLocaleTimeString();
-        }, 1000);
-
-
-        // --- SOCKET & APP LOGIC (KORUNDU) ---
+        // --- MANTIK KODLARI (KORUNDU) ---
         const socket = io();
         let player, isAdmin = false, isRemote = false, forcedMute = false, pendingSyncData = null;
         let myAvatarUrl = "https://www.gravatar.com/avatar/?d=mp";
 
         // Avatar Logic
+        window.onload = () => {
+            const savedName = localStorage.getItem('wt_username');
+            const savedEmail = localStorage.getItem('wt_email');
+            if (savedName) document.getElementById('usernameInput').value = savedName;
+            if (savedEmail) {
+                document.getElementById('emailInput').value = savedEmail;
+                updateAvatarPreview();
+            }
+        }
+
         function updateAvatarPreview() {
             const email = document.getElementById('emailInput').value.trim().toLowerCase();
             if (email) {
                 const hash = CryptoJS.MD5(email).toString();
                 myAvatarUrl = `https://www.gravatar.com/avatar/${hash}?d=robohash`;
-            }
-            document.getElementById('avatar-preview').src = myAvatarUrl;
+            } else { myAvatarUrl = "https://www.gravatar.com/avatar/?d=mp"; }
+            document.getElementById('preview-img').src = myAvatarUrl;
         }
 
-        // LOGIN
+        function showLoginError(msg) {
+            const el = document.getElementById('login-error-msg');
+            el.style.display = 'block';
+            el.innerText = msg;
+            gsap.from(el, {x: 10, duration: 0.1, yoyo:true, repeat:3}); // Shake effect
+        }
+
         function submitProfile() {
             const name = document.getElementById('usernameInput').value.trim();
             const email = document.getElementById('emailInput').value.trim();
             const pass = document.getElementById('userPassInput').value.trim();
             
-            if(!name || !email || !pass) {
-                document.getElementById('error-log').innerText = ">> ERROR: MISSING DATA PACKETS";
-                return;
-            }
+            if(!name || !email || !pass) { showLoginError("Lütfen tüm alanları doldurunuz."); return; }
 
             localStorage.setItem('wt_username', name);
             localStorage.setItem('wt_email', email);
@@ -431,53 +467,40 @@
         }
 
         socket.on('login_success', () => {
-            // GSAP Transition
-            gsap.to('#login-screen', { opacity: 0, duration: 0.5, onComplete: () => {
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('app-interface').style.display = 'flex';
-                gsap.from('.app-grid', { opacity: 0, y: 20, duration: 1 });
+            // Transition Animation
+            gsap.to("#login-overlay", { opacity: 0, duration: 0.5, onComplete: () => {
+                document.getElementById('login-overlay').classList.add('hidden');
+                gsap.to(".app-container", { opacity: 1, duration: 1 });
             }});
             
             const name = document.getElementById('usernameInput').value;
-            document.getElementById('my-name-display').innerHTML = `CODNAME: ${name.toUpperCase()}`;
+            document.getElementById('my-name-display').innerText = name;
+            document.getElementById('my-mini-avatar').src = myAvatarUrl;
+            document.getElementById('my-mini-avatar').style.display = 'block';
         });
 
-        socket.on('login_failed', (msg) => {
-            document.getElementById('error-log').innerText = ">> ACCESS DENIED: " + msg;
-            gsap.to('.login-terminal', { x: 10, duration: 0.1, yoyo: true, repeat: 5 }); // Shake effect
-        });
+        socket.on('login_failed', (reason) => { showLoginError(reason || "Giriş başarısız."); });
 
-        // ADMIN
-        function toggleAdminModal() {
-            const modal = document.getElementById('admin-modal');
-            if(modal.style.display === 'block') modal.style.display = 'none';
-            else modal.style.display = 'block';
-        }
-        function verifyAdmin() {
-            const pwd = document.getElementById('adminPassInput').value;
-            socket.emit('admin_girisi', pwd);
-        }
-        socket.on('admin_basarili', (success) => {
-            if(success) {
-                isAdmin = true;
-                toggleAdminModal();
-                document.getElementById('admin-controls-bar').style.display = 'flex';
-                document.getElementById('blocker').style.display = 'none';
-                document.getElementById('admin-trigger').innerText = "[ADMIN: ACTIVE]";
-                document.getElementById('admin-trigger').style.color = "var(--neon)";
-                // Enable admin spy view
-                socket.emit('admin_girisi', document.getElementById('adminPassInput').value); // Re-trigger for list update
-            } else {
-                alert("ACCESS DENIED");
-            }
-        });
-
-        // CHAT & LISTS
+        // --- APP UI LOGIC ---
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelector(`button[onclick="switchTab('${tab}')"]`).classList.add('active');
-            document.getElementById('chat-panel').style.display = tab === 'chat' ? 'flex' : 'none';
-            document.getElementById('users-panel').style.display = tab === 'users' ? 'block' : 'none';
+            
+            if(tab === 'chat') {
+                document.getElementById('chat-panel').style.display = 'flex';
+                document.getElementById('chat-input-bar').style.display = 'flex';
+                document.getElementById('users-panel').style.display = 'none';
+            } else {
+                document.getElementById('chat-panel').style.display = 'none';
+                document.getElementById('chat-input-bar').style.display = 'none';
+                document.getElementById('users-panel').style.display = 'flex';
+            }
+        }
+
+        // --- SOHBET & LİSTE ---
+        function sendMessage() {
+            const inp = document.getElementById('chatInput');
+            if(inp.value.trim()) { socket.emit('send_message', inp.value); inp.value = ''; }
         }
 
         socket.on('chat_history', (h) => {
@@ -489,21 +512,22 @@
         function appendMsg(data) {
             const box = document.getElementById('chat-messages');
             const div = document.createElement('div');
-            div.className = 'chat-msg';
-            if(data.type==='system') {
-                div.innerHTML = `<span style="color:#666">> ${data.text}</span>`;
+            div.className = `msg ${data.type}`;
+            
+            if(data.type === 'system') {
+                div.innerHTML = `<div class="msg-bubble" style="text-align:center; width:100%; color:#94a3b8;">${data.text}</div>`;
             } else {
-                div.innerHTML = `<b>${data.user}:</b> ${data.text}`;
+                div.innerHTML = `
+                    <img class="msg-img" src="${data.avatar || 'https://www.gravatar.com/avatar/?d=mp'}">
+                    <div class="msg-content">
+                        <span class="msg-name">${data.user}</span>
+                        <div class="msg-bubble">${data.text}</div>
+                    </div>
+                `;
             }
             box.appendChild(div); box.scrollTop = box.scrollHeight;
         }
 
-        function sendMessage() {
-            const inp = document.getElementById('chatInput');
-            if(inp.value.trim()) { socket.emit('send_message', inp.value); inp.value=''; }
-        }
-
-        // User List & Spy
         socket.on('admin_spy_list', (u) => renderList(u, true));
         socket.on('update_user_list', (u) => { if(!isAdmin) renderList(u, false); });
 
@@ -511,37 +535,90 @@
             const con = document.getElementById('user-list-container'); con.innerHTML='';
             Object.keys(users).forEach(id => {
                 const u = users[id];
-                const div = document.createElement('div'); div.className='user-item';
-                let html = `<div><span style="color:${u.muted?'orange':'#fff'}">${u.name}</span></div>`;
+                const div = document.createElement('div'); div.className = 'user-row';
                 
-                if(spy && u.email) {
-                    html += `<div style="font-size:9px; color:#666;">${u.email} | <span style="color:red">${u.password}</span></div>`;
-                    if(id !== socket.id) {
-                        html += `<div><button class="admin-btn mute-btn" onclick="adm('${id}','mute')">MUTE</button><button class="admin-btn ban-btn" onclick="adm('${id}','ban')">BAN</button></div>`;
-                    }
+                let icons = u.muted ? '<i class="fa-solid fa-microphone-slash" style="color:#f59e0b"></i>' : '';
+                let spyInfo = '';
+                if(spy && u.email) spyInfo = `<div style="font-size:10px; color:#666; margin-top:4px;">${u.email} • ${u.password}</div>`;
+                
+                let btns = '';
+                if(isAdmin && id !== socket.id) {
+                    btns = `
+                        <div style="display:flex; gap:5px;">
+                            <button class="action-btn" style="padding:4px 8px;" onclick="adm('${id}','mute')">${u.muted?'Ses Aç':'Sustur'}</button>
+                            <button class="action-btn" style="padding:4px 8px; border-color:#ef4444; color:#ef4444;" onclick="adm('${id}','ban')">Ban</button>
+                        </div>
+                    `;
                 }
-                div.innerHTML = html;
+
+                div.innerHTML = `
+                    <div style="flex:1;">
+                        <div class="user-meta">
+                            <img src="${u.avatar||'https://www.gravatar.com/avatar/?d=mp'}" style="width:32px; height:32px; border-radius:50%;">
+                            <div>
+                                <div style="font-size:13px; font-weight:500;">${u.name} ${icons}</div>
+                                ${spyInfo}
+                            </div>
+                        </div>
+                    </div>
+                    ${btns}
+                `;
                 con.appendChild(div);
             });
         }
-        function adm(id, type) { socket.emit('admin_action', {targetId: id, action: type}); }
+        function adm(id, type) { socket.emit('admin_action', { targetId: id, action: type }); }
 
-        // YOUTUBE & SYNC
+        // --- YÖNETİM ---
+        function toggleAdminPopup() { 
+            const p = document.getElementById('admin-popup'); 
+            p.classList.toggle('hidden');
+            document.getElementById('login-msg').innerText="";
+            document.getElementById('passInput').value="";
+        }
+        function girisYap() { 
+            const pwd = document.getElementById('passInput').value;
+            if(pwd) {
+                document.getElementById('login-msg').innerText="Kontrol ediliyor...";
+                socket.emit('admin_girisi', pwd);
+            }
+        }
+        socket.on('admin_error', (m) => document.getElementById('login-msg').innerText=m);
+        socket.on('admin_basarili', (s) => {
+            if(s) {
+                isAdmin=true; toggleAdminPopup();
+                document.getElementById('admin-tools').style.display='flex';
+                document.getElementById('status-text').innerText="YÖNETİCİ MODU";
+                document.getElementById('status-text').style.color="#a855f7";
+                gsap.from("#admin-tools", {height:0, opacity:0, duration:0.5});
+            }
+        });
+
+        socket.on('force_disconnect', (reason) => {
+            document.body.innerHTML = `<div style="display:flex; height:100vh; width:100%; justify-content:center; align-items:center; flex-direction:column; color:#fff;">
+                <h2 style="color:#ef4444;">Bağlantı Kesildi</h2>
+                <p style="opacity:0.7;">${reason}</p>
+            </div>`;
+        });
+
+        // --- PLAYER ---
         var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; var firstScriptTag = document.getElementsByTagName('script')[0]; firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
         function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'controls': 0, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3, 'playsinline': 1 }, events: { 'onStateChange': onPlayerStateChange, 'onReady': onPlayerReady } }); }
-        function onPlayerReady() { player.mute(); document.getElementById('vol-slider').value=0; if(pendingSyncData) { applySync(pendingSyncData); pendingSyncData=null; } }
-        function videoDegistir() { let url=document.getElementById('videoLink').value; let vId=(url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/)||[])[7]; if(vId&&vId.length==11){ document.getElementById('placeholder-text').style.display='none'; player.loadVideoById(vId); socket.emit('video_action', {type:'change', videoId:vId}); }}
-        function onPlayerStateChange(event) { if(event.data===YT.PlayerState.PLAYING) document.getElementById('placeholder-text').style.display='none'; if(isRemote||!isAdmin)return; if(event.data===YT.PlayerState.PLAYING) socket.emit('video_action',{type:'play', time:player.getCurrentTime()}); else if(event.data===YT.PlayerState.PAUSED) socket.emit('video_action',{type:'pause', time:player.getCurrentTime()}); }
-        function applySync(data) { isRemote=true; document.getElementById('placeholder-text').style.display='none'; if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) { player.loadVideoById(data.videoId, data.time); } if(data.type==='play'){ let diff=Math.abs(player.getCurrentTime()-data.time); if(diff>1)player.seekTo(data.time,true); player.playVideo(); } else if(data.type==='pause'){ player.seekTo(data.time,true); player.pauseVideo(); } else if(data.type==='change'){ player.loadVideoById(data.videoId); } setTimeout(()=>isRemote=false,1000); }
-        socket.on('sync_video', (d) => { if(!player||!player.loadVideoById) pendingSyncData=d; else applySync(d); });
+        function onPlayerReady() { player.mute(); document.getElementById('vol-slider').value = 0; updateMuteIcon(0); if (pendingSyncData) { applySync(pendingSyncData); pendingSyncData = null; } }
+        function videoDegistir() { let url = document.getElementById('videoLink').value; let vId = (url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/)||[])[7]; if(vId && vId.length==11) { document.getElementById('placeholder-text').style.display='none'; player.loadVideoById(vId); socket.emit('video_action', {type:'change', videoId:vId}); } }
+        function onPlayerStateChange(event) { if(event.data === YT.PlayerState.PLAYING) document.getElementById('placeholder-text').style.display='none'; if(isRemote || !isAdmin) return; if(event.data === YT.PlayerState.PLAYING) socket.emit('video_action', {type:'play', time:player.getCurrentTime()}); else if(event.data === YT.PlayerState.PAUSED) socket.emit('video_action', {type:'pause', time:player.getCurrentTime()}); }
+        function applySync(data) { isRemote = true; document.getElementById('placeholder-text').style.display='none'; if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) { player.loadVideoById(data.videoId, data.time); } if(data.type==='play') { let diff = Math.abs(player.getCurrentTime() - data.time); if(diff > 1) player.seekTo(data.time, true); player.playVideo(); } else if(data.type==='pause') { player.seekTo(data.time, true); player.pauseVideo(); } else if(data.type==='change') { player.loadVideoById(data.videoId); } setTimeout(()=>isRemote=false, 1000); }
+        socket.on('sync_video', (data) => { if (!player || !player.loadVideoById) { pendingSyncData = data; } else { applySync(data); } });
+        function toggleMute() { if(forcedMute) return; if(player.isMuted()) { player.unMute(); document.getElementById('vol-slider').value = player.getVolume(); updateMuteIcon(player.getVolume()); } else { player.mute(); document.getElementById('vol-slider').value = 0; updateMuteIcon(0); } }
+        function updateMuteIcon(vol) { const icon = document.getElementById('mute-icon'); if(vol == 0) icon.className = "fa-solid fa-volume-xmark"; else if(vol < 50) icon.className = "fa-solid fa-volume-low"; else icon.className = "fa-solid fa-volume-high"; }
+        function setVolume(v) { if(!forcedMute) { if(v > 0 && player.isMuted()) player.unMute(); if(v == 0) player.mute(); player.setVolume(v); updateMuteIcon(v); } }
+        function syncNow() { location.reload(); }
+        function toggleFullScreen() { var e = document.getElementById("player-wrapper"); if(!document.fullscreenElement) e.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); }
         
-        function toggleMute(){ if(forcedMute)return; if(player.isMuted()){player.unMute(); document.getElementById('vol-slider').value=player.getVolume();} else {player.mute(); document.getElementById('vol-slider').value=0;} }
-        function setVolume(v){ if(!forcedMute){ if(v>0&&player.isMuted())player.unMute(); if(v==0)player.mute(); player.setVolume(v); } }
-        function syncNow(){ location.reload(); }
-        function toggleFullScreen(){ var e=document.getElementById("player-wrapper"); if(!document.fullscreenElement)e.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); }
-        socket.on('force_disconnect', (r) => { document.body.innerHTML=`<div style="color:red;margin:20%;font-family:'Space Mono';text-align:center;"><h1>TERMINATED</h1><p>${r}</p></div>`; });
-        socket.on('toggle_mute_lock', (m) => { forcedMute=m; if(m){player.mute();player.setVolume(0);} else {player.unMute();player.setVolume(100);} });
-
+        socket.on('toggle_mute_lock', (m) => { 
+            forcedMute = m; 
+            document.getElementById('mute-lock-indicator').style.display = m ? 'inline' : 'none';
+            if(m) { player.mute(); player.setVolume(0); document.getElementById('vol-slider').value=0; } 
+        });
     </script>
 </body>
 </html>
