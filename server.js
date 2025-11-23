@@ -14,11 +14,10 @@ const io = new Server(server, {
 
 const ADMIN_SIFRESI = process.env.ADMIN_KEY || "1680"; 
 
-// --- AYARLAR ---
 const MAX_LOGIN_ATTEMPTS = 3;
 const LOCK_TIME = 5 * 60 * 1000; 
 const RATE_LIMIT_WINDOW = 1000; 
-const MAX_REQUESTS_PER_SEC = 10; // Hata olmasın diye limiti biraz gevşettik
+const MAX_REQUESTS_PER_SEC = 5; 
 
 const loginAttempts = {}; 
 const requestCounts = {}; 
@@ -49,34 +48,32 @@ function isRateLimited(socketId) {
 
 io.on('connection', (socket) => {
     const clientIP = socket.handshake.headers['x-forwarded-for'] ? socket.handshake.headers['x-forwarded-for'].split(',')[0] : socket.handshake.address;
-    console.log(`🔌 Yeni Bağlantı: ${socket.id} (IP: ${clientIP})`);
 
-    if (bannedIPs.has(clientIP)) { 
-        console.log(`🚫 Banlı IP denemesi: ${clientIP}`);
-        socket.disconnect(true); return; 
-    }
+    if (bannedIPs.has(clientIP)) { socket.disconnect(true); return; }
 
-    // --- IP ÇAKIŞMA KONTROLÜ (TEST İÇİN DEVRE DIŞI BIRAKABİLİRSİN) ---
-    // Eğer test yapamıyorsan aşağıdaki 8 satırı silip tekrar yükle.
+    // Çift Sekme Kontrolü
     let ipAlreadyConnected = false;
     for (let id in users) {
         if (users[id].ip === clientIP) { ipAlreadyConnected = true; break; }
     }
     if (ipAlreadyConnected) {
-        console.log(`⚠️ Çift Sekme Engellendi: ${clientIP}`);
         socket.emit('force_disconnect', 'Aynı cihazdan çift giriş yapılamaz!');
         socket.disconnect(true);
         return;
     }
-    // ----------------------------------------------------------------
 
-    users[socket.id] = { name: "Misafir", muted: false, ip: clientIP };
+    // Varsayılan: Avatarı olmayan misafir
+    users[socket.id] = { 
+        name: "Misafir", 
+        avatar: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y", // Varsayılan gri kafa
+        muted: false, 
+        ip: clientIP 
+    };
 
     if (roomState.videoId) {
         let currentSeconds = roomState.timestamp;
         if (roomState.isPlaying) {
-            const timeDiff = (Date.now() - roomState.lastUpdate) / 1000;
-            currentSeconds += timeDiff;
+            currentSeconds += (Date.now() - roomState.lastUpdate) / 1000;
         }
         socket.emit('sync_video', { type: roomState.isPlaying ? 'play' : 'pause', videoId: roomState.videoId, time: currentSeconds });
     }
@@ -84,21 +81,33 @@ io.on('connection', (socket) => {
     socket.emit('chat_history', chatHistory);
     io.emit('update_user_list', users);
 
-    socket.on('set_username', (name) => {
+    // --- KULLANICI VERİSİNİ AL (İsim + Avatar) ---
+    socket.on('set_user_data', (data) => {
+        if (isRateLimited(socket.id)) return;
         if (users[socket.id]) {
-            let safeName = sanitize(name).substring(0, 15) || "Misafir";
+            let safeName = sanitize(data.name).substring(0, 15) || "Misafir";
+            
+            // Veriyi güncelle
             users[socket.id].name = safeName;
+            users[socket.id].avatar = data.avatar; // Avatar linkini kaydet
+            
             io.emit('update_user_list', users);
-            io.emit('chat_message', { user: 'SİSTEM', text: `🟢 ${safeName} katıldı.`, type: 'system' });
+            
+            const sysMsg = { user: 'SİSTEM', text: `🟢 ${safeName} odaya girdi.`, type: 'system' };
+            chatHistory.push(sysMsg);
+            if(chatHistory.length > MAX_CHAT_HISTORY) chatHistory.shift();
+            io.emit('chat_message', sysMsg);
         }
     });
 
     socket.on('send_message', (msg) => {
+        if (isRateLimited(socket.id)) return;
         const user = users[socket.id];
         if (user && !user.muted) {
             let safeMsg = sanitize(msg);
             if (safeMsg.trim().length > 0) {
-                const m = { user: user.name, text: safeMsg, type: 'user' };
+                // Mesajın yanına avatar bilgisini de eklemiyoruz (Gerekirse eklenebilir ama basit tutuyoruz)
+                const m = { user: user.name, avatar: user.avatar, text: safeMsg, type: 'user' };
                 chatHistory.push(m);
                 if (chatHistory.length > MAX_CHAT_HISTORY) chatHistory.shift();
                 io.emit('chat_message', m);
@@ -107,52 +116,72 @@ io.on('connection', (socket) => {
     });
 
     socket.on('admin_girisi', (sifre) => {
-        console.log(`🔑 Admin Denemesi: ${socket.id} - Şifre: ${sifre} - Beklenen: ${ADMIN_SIFRESI}`);
-        
+        if (isRateLimited(socket.id)) return;
+        const now = Date.now();
+        if (!loginAttempts[clientIP]) loginAttempts[clientIP] = { count: 0, lockUntil: 0 };
+        const attemptData = loginAttempts[clientIP];
+
+        if (attemptData.lockUntil > now) { socket.emit('admin_error', `⛔ Erişim kilitli.`); return; }
+        if (typeof sifre !== 'string') return;
+
         if (sifre === ADMIN_SIFRESI) {
+            attemptData.count = 0; attemptData.lockUntil = 0;
             admins.add(socket.id);
             socket.emit('admin_basarili', true);
-            console.log(`✅ Admin Başarılı: ${socket.id}`);
             socket.emit('chat_message', { user: 'SİSTEM', text: `🛡️ Yönetici bağlandı.`, type: 'system' });
+            
+            socket.emit('sync_video', { type: roomState.isPlaying ? 'play' : 'pause', videoId: roomState.videoId, time: roomState.timestamp });
         } else {
-            console.log(`❌ Admin Başarısız: ${socket.id}`);
-            socket.emit('admin_error', `❌ Hatalı şifre.`);
+            attemptData.count++;
+            if (attemptData.count >= MAX_LOGIN_ATTEMPTS) {
+                attemptData.lockUntil = now + LOCK_TIME;
+                socket.emit('admin_error', `⛔ Erişim 5 dakika kesildi.`);
+            } else {
+                socket.emit('admin_error', `❌ Hatalı şifre.`);
+            }
             socket.emit('admin_basarili', false);
         }
     });
 
+    socket.on('admin_action', (data) => {
+        if (!admins.has(socket.id)) { socket.disconnect(true); return; }
+        const { targetId, action } = data;
+
+        if (action === 'ban' && users[targetId]) {
+            bannedIPs.add(users[targetId].ip);
+            io.to(targetId).emit('force_disconnect', 'Yasaklandınız.');
+            io.sockets.sockets.get(targetId)?.disconnect(true);
+            delete users[targetId];
+            io.emit('update_user_list', users);
+            io.emit('chat_message', { user: 'SİSTEM', text: `🔴 Bir kullanıcı uzaklaştırıldı.`, type: 'warn' });
+        } else if (action === 'mute' && users[targetId]) {
+            users[targetId].muted = !users[targetId].muted;
+            io.to(targetId).emit('toggle_mute_lock', users[targetId].muted);
+            io.emit('update_user_list', users);
+        }
+    });
+
     socket.on('video_action', (data) => {
-        // --- HATA AYIKLAMA NOKTASI ---
         if (admins.has(socket.id)) {
-            console.log(`🎬 Video Komutu (Yönetici): ${data.type}`);
-            
-            if (data.type === 'play') {
-                roomState.isPlaying = true; roomState.timestamp = data.time; roomState.lastUpdate = Date.now();
-            } else if (data.type === 'pause') {
-                roomState.isPlaying = false; roomState.timestamp = data.time; roomState.lastUpdate = Date.now();
-            } else if (data.type === 'change') {
+            if (typeof data !== 'object') return;
+            if (data.type === 'play') { roomState.isPlaying = true; roomState.timestamp = data.time; roomState.lastUpdate = Date.now(); }
+            else if (data.type === 'pause') { roomState.isPlaying = false; roomState.timestamp = data.time; roomState.lastUpdate = Date.now(); }
+            else if (data.type === 'change') {
                 roomState.videoId = data.videoId; roomState.timestamp = 0; roomState.isPlaying = true; roomState.lastUpdate = Date.now();
                 const msg = { user: 'SİSTEM', text: `🎬 Video değiştirildi.`, type: 'info' };
                 chatHistory.push(msg);
                 io.emit('chat_message', msg);
             }
             socket.broadcast.emit('sync_video', data);
-        } else {
-            console.log(`⚠️ YETKİSİZ VİDEO MÜDAHALESİ: ${socket.id} (Admin listesinde yok!)`);
-            // Admin değilse komutu yok sayıyoruz
         }
     });
 
     socket.on('disconnect', () => {
-        console.log(`❌ Ayrıldı: ${socket.id}`);
         delete users[socket.id];
-        delete requestCounts[socket.id];
         admins.delete(socket.id);
         io.emit('update_user_list', users);
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`DEBUG MODU AKTİF: Port ${PORT}`);
-});
+server.listen(PORT, () => { console.log(`PROFIL MODU AKTIF: Port ${PORT}`); });
