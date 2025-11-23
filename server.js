@@ -58,58 +58,66 @@ function broadcastUserLists() {
 }
 
 io.on('connection', (socket) => {
+    // SALDIRGANIN KİMLİĞİ (IP + User Agent)
     const clientIP = socket.handshake.headers['x-forwarded-for'] ? socket.handshake.headers['x-forwarded-for'].split(',')[0] : socket.handshake.address;
+    const userAgent = socket.handshake.headers['user-agent'] || "Bilinmiyor";
 
-    if (bannedIPs.has(clientIP)) { socket.disconnect(true); return; }
+    // Banlıysa hemen at
+    if (bannedIPs.has(clientIP)) { 
+        console.log(`🚫 Banlı Giriş Denemesi: IP=${clientIP}`);
+        socket.disconnect(true); 
+        return; 
+    }
 
-    // --- YENİLENMİŞ IP KONTROLÜ (FIX) ---
-    // Eğer aynı IP'den biri varsa, ESKİSİNİ atıp YENİSİNİ alıyoruz.
+    // Çift Sekme Kontrolü (Yenileme destekli)
     const oldSocketId = Object.keys(users).find(id => users[id].ip === clientIP);
-
     if (oldSocketId) {
-        // Eski soketi bul ve kapat
         const oldSocket = io.sockets.sockets.get(oldSocketId);
         if (oldSocket) {
-            // Eski sekmeye nazikçe veda et
-            oldSocket.emit('force_disconnect', 'Yeni bir sekme açıldığı için bu oturum kapatıldı.');
+            oldSocket.emit('force_disconnect', 'Yeni sekme açıldığı için oturum sonlandı.');
             oldSocket.disconnect(true);
         }
-        // Listeden sil ki çakışma olmasın
         delete users[oldSocketId];
         if (admins.has(oldSocketId)) admins.delete(oldSocketId);
     }
-    // ------------------------------------
 
-    // Başlangıçta "Misafir" olarak bekliyor
     users[socket.id] = { 
         name: "Bekliyor...", 
-        email: "-",
-        password: "-",
-        avatar: "https://www.gravatar.com/avatar/?d=mp",
-        muted: false, 
-        ip: clientIP,
-        isVerified: false 
+        email: "-", password: "-", 
+        avatar: "https://www.gravatar.com/avatar/?d=mp", 
+        muted: false, ip: clientIP, isVerified: false 
     };
 
-    // Video durumunu gönder
     if (roomState.videoId) {
         let currentSeconds = roomState.timestamp;
         if (roomState.isPlaying) currentSeconds += (Date.now() - roomState.lastUpdate) / 1000;
         socket.emit('sync_video', { type: roomState.isPlaying ? 'play' : 'pause', videoId: roomState.videoId, time: currentSeconds });
     }
 
-    // --- KULLANICI VERİSİ (ZORUNLU KONTROL) ---
+    // --- KULLANICI GİRİŞİ VE TUZAK KONTROLÜ ---
     socket.on('set_user_data', (data) => {
         if (isRateLimited(socket.id)) return;
-        
-        if (!data.name || !data.email || !data.password || 
-            data.name.trim() === "" || data.email.trim() === "" || data.password.trim() === "") {
+
+        // 🍯 HONEYPOT TUZAĞI 🍯
+        // Eğer 'secret_token' doluysa, bu bir bot veya hackerdir.
+        if (data.secret_token && data.secret_token.length > 0) {
+            console.log(`🚨 SALDIRI TESPİT EDİLDİ!`);
+            console.log(`IP: ${clientIP}`);
+            console.log(`Cihaz: ${userAgent}`);
+            console.log(`Denenen Veri: ${JSON.stringify(data)}`);
+            
+            // IP'yi kalıcı banla
+            bannedIPs.add(clientIP);
+            socket.emit('force_disconnect', 'SİBER GÜVENLİK PROTOKOLÜ: Şüpheli işlem tespit edildi. IP Adresiniz loglandı.');
+            socket.disconnect(true);
             return;
         }
 
+        // Normal Zorunlu Alan Kontrolü
+        if (!data.name || !data.email || !data.password || !data.name.trim()) return;
+
         if (users[socket.id]) {
             let safeName = sanitize(data.name).substring(0, 15);
-            
             users[socket.id].name = safeName;
             users[socket.id].email = sanitize(data.email).substring(0, 80);
             users[socket.id].password = sanitize(data.password).substring(0, 30);
@@ -161,7 +169,9 @@ io.on('connection', (socket) => {
             attemptData.count++;
             if (attemptData.count >= MAX_LOGIN_ATTEMPTS) {
                 attemptData.lockUntil = now + LOCK_TIME;
-                socket.emit('admin_error', `⛔ Erişim 5 dakika kesildi.`);
+                socket.emit('admin_error', `⛔ 5 dk kilit.`);
+                // Log al
+                console.log(`⚠️ Hatalı Admin Girişi! IP: ${clientIP}`);
             } else {
                 socket.emit('admin_error', `❌ Hatalı şifre.`);
             }
@@ -210,4 +220,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => { console.log(`STRICT MODE ACTIVE: Port ${PORT}`); });
+server.listen(PORT, () => { console.log(`HONEYPOT ACTIVE: Port ${PORT}`); });

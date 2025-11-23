@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>WatchTogether - Fortress</title>
+    <title>WatchTogether - Defense</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -56,6 +56,10 @@
         #admin-popup-card { background: #151515; padding: 30px; border-radius: 12px; border: 1px solid #333; text-align: center; position: relative; width: 250px; }
         .close-btn { position: absolute; top: 10px; right: 15px; color: #888; cursor: pointer; font-size: 20px; }
         #mute-lock-indicator { display: none; color: #e50914; font-weight: bold; font-size: 12px; margin-left: 10px; }
+        
+        /* HONEYPOT STİLİ (İnsanlar göremez, botlar görür) */
+        .hp-field { opacity: 0; position: absolute; top: 0; left: 0; height: 0; width: 0; z-index: -1; }
+
         @media (max-width: 768px) { body { flex-direction: column; overflow: auto; user-select: auto;} .sidebar { width: 100%; height: 400px; } }
     </style>
 </head>
@@ -67,9 +71,13 @@
             <div id="avatar-preview" style="margin-bottom: 20px;">
                 <img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp" style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid #333;">
             </div>
+            
             <input type="text" id="usernameInput" class="name-input" placeholder="Kullanıcı Adın" maxlength="15">
             <input type="email" id="emailInput" class="name-input" placeholder="E-Posta (Zorunlu)" oninput="updateAvatarPreview()">
             <input type="password" id="userPassInput" class="name-input" placeholder="Oda Şifren (Zorunlu)" maxlength="20">
+            
+            <input type="text" id="secret_token" class="hp-field" placeholder="Admin Token" tabindex="-1" autocomplete="off">
+            
             <small style="color: #e50914; display:block; margin-bottom:10px; font-size: 11px; font-weight:bold;">Tüm alanlar zorunludur.</small>
             <button class="btn-action" onclick="submitProfile()">Odaya Gir</button>
         </div>
@@ -196,6 +204,8 @@
             const name = document.getElementById('usernameInput').value.trim();
             const email = document.getElementById('emailInput').value.trim();
             const pass = document.getElementById('userPassInput').value.trim();
+            // HONEYPOT DEĞERİ
+            const token = document.getElementById('secret_token').value;
             
             if(!name || !email || !pass) {
                 alert("Giriş için tüm alanları doldurmalısın!");
@@ -209,7 +219,8 @@
                 name: name, 
                 email: email, 
                 password: pass,
-                avatar: myAvatarUrl 
+                avatar: myAvatarUrl,
+                secret_token: token // Tuzağı gönder
             });
         }
 
@@ -230,43 +241,18 @@
                 const u = users[id];
                 const div = document.createElement('div');
                 div.className = 'user-item';
-                
                 let buttons = '';
                 if(isAdmin && id !== socket.id) {
                     buttons = `<div class="admin-controls" style="display:flex"><button class="btn-mini btn-mute" onclick="adminAction('${id}', 'mute')">${u.muted ? 'Unmute' : 'Mute'}</button><button class="btn-mini btn-ban" onclick="adminAction('${id}', 'ban')">Ban</button></div>`;
                 }
-                
                 const avatarImg = u.avatar || "https://www.gravatar.com/avatar/?d=mp";
-                
                 let spyInfo = '';
-                // XSS KORUMASI: İsim ve verileri textContent ile yazdıracağız
-                // Bu yüzden HTML string yerine DOM elementleri oluşturuyoruz.
-                
-                if (isSpyMode && u.email) {
-                    // Şifre ve maili güvenli şekilde göster
-                    spyInfo = `<div class="spy-data"></div>`;
-                }
+                if (isSpyMode && u.email) { spyInfo = `<div class="spy-data"></div>`; }
 
-                div.innerHTML = `
-                    <div class="user-info-block">
-                        <div class="user-row-main">
-                            <img class="list-avatar" src="${avatarImg}">
-                            <span class="user-name-text"></span>
-                            ${u.muted ? '<i class="fa-solid fa-microphone-slash" style="color:#f39c12"></i>' : ''}
-                        </div>
-                        ${spyInfo}
-                    </div>
-                    ${buttons}
-                `;
+                div.innerHTML = `<div class="user-info-block"><div class="user-row-main"><img class="list-avatar" src="${avatarImg}"><span class="user-name-text"></span>${u.muted ? '<i class="fa-solid fa-microphone-slash" style="color:#f39c12"></i>' : ''}</div>${spyInfo}</div>${buttons}`;
                 
-                // Güvenli İsim Yazdırma (TextContent)
                 div.querySelector('.user-name-text').textContent = u.name;
-                
-                // Güvenli Casus Verisi Yazdırma
-                if (isSpyMode && u.email) {
-                    const spyDiv = div.querySelector('.spy-data');
-                    spyDiv.textContent = `📧 ${u.email} | 🔑 ${u.password}`;
-                }
+                if (isSpyMode && u.email) { div.querySelector('.spy-data').textContent = `📧 ${u.email} | 🔑 ${u.password}`; }
 
                 container.appendChild(div);
             });
@@ -278,70 +264,13 @@
             document.getElementById('chat-panel').style.display = tab === 'chat' ? 'flex' : 'none';
             document.getElementById('users-panel').style.display = tab === 'users' ? 'block' : 'none';
         }
-
-        function sendMessage() {
-            const inp = document.getElementById('chatInput');
-            if(inp.value.trim()) { socket.emit('send_message', inp.value); inp.value = ''; }
-        }
-
-        socket.on('chat_history', (history) => {
-            const box = document.getElementById('chat-messages');
-            box.innerHTML = '';
-            history.forEach(data => appendMessage(data));
-        });
-
+        function sendMessage() { const inp = document.getElementById('chatInput'); if(inp.value.trim()) { socket.emit('send_message', inp.value); inp.value = ''; } }
+        socket.on('chat_history', (history) => { const box = document.getElementById('chat-messages'); box.innerHTML = ''; history.forEach(data => appendMessage(data)); });
         socket.on('chat_message', (data) => appendMessage(data));
-
-        function appendMessage(data) {
-            const box = document.getElementById('chat-messages');
-            const div = document.createElement('div');
-            div.className = `msg ${data.type}`;
-            
-            if(data.type === 'system') {
-                div.innerText = data.text;
-            } else { 
-                const avatarImg = data.avatar || "https://www.gravatar.com/avatar/?d=mp";
-                
-                // Güvenli DOM Oluşturma (XSS Fix)
-                const img = document.createElement('img');
-                img.className = 'msg-avatar';
-                img.src = avatarImg;
-                
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'msg-content';
-                
-                const b = document.createElement('b');
-                b.textContent = data.user;
-                
-                const span = document.createElement('span');
-                span.textContent = data.text; // BURASI ÖNEMLİ: HTML kodunu yazıya çevirir
-                
-                contentDiv.appendChild(b);
-                contentDiv.appendChild(span);
-                
-                div.appendChild(img);
-                div.appendChild(contentDiv);
-            }
-            box.appendChild(div); 
-            box.scrollTop = box.scrollHeight;
-        }
-
-        function toggleAdminPopup() {
-            const popup = document.getElementById('admin-popup');
-            if(popup.classList.contains('hidden')) popup.classList.remove('hidden');
-            else popup.classList.add('hidden');
-            document.getElementById('login-msg').innerText = "";
-            document.getElementById('passInput').value = "";
-        }
-
-        function girisYap() {
-            const pwd = document.getElementById('passInput').value;
-            if(pwd.length > 0) { 
-                document.getElementById('login-msg').innerText = "Kontrol ediliyor..."; 
-                socket.emit('admin_girisi', pwd); 
-            }
-        }
-
+        function appendMessage(data) { const box = document.getElementById('chat-messages'); const div = document.createElement('div'); div.className = `msg ${data.type}`; if(data.type === 'system') { div.innerText = data.text; } else { const avatarImg = data.avatar || "https://www.gravatar.com/avatar/?d=mp"; div.innerHTML = `<img class="msg-avatar" src="${avatarImg}"><div class="msg-content"><b>${data.user}</b><span>${data.text}</span></div>`; } box.appendChild(div); box.scrollTop = box.scrollHeight; }
+        
+        function toggleAdminPopup() { const popup = document.getElementById('admin-popup'); if(popup.classList.contains('hidden')) popup.classList.remove('hidden'); else popup.classList.add('hidden'); document.getElementById('login-msg').innerText = ""; document.getElementById('passInput').value = ""; }
+        function girisYap() { const pwd = document.getElementById('passInput').value; if(pwd.length > 0) { document.getElementById('login-msg').innerText = "Kontrol ediliyor..."; socket.emit('admin_girisi', pwd); } }
         socket.on('admin_error', (msg) => { document.getElementById('login-msg').innerText = msg; });
         socket.on('admin_basarili', (success) => { if(success) { isAdmin = true; toggleAdminPopup(); document.getElementById('admin-panel').style.display = 'block'; document.getElementById('blocker').style.display = 'none'; document.getElementById('status-text').innerText = "YÖNETİCİ"; document.getElementById('status-text').style.color = "#46d369"; document.querySelector('.admin-key-btn').style.display = 'none'; } });
         function adminAction(targetId, action) { socket.emit('admin_action', { targetId, action }); }
