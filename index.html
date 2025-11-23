@@ -2,34 +2,46 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>WatchTogether - Final</title>
+    <title>WatchTogether - Final Fix</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* STYLES AYNI KALDI - ÖZET */
+        /* --- GENEL STİLLER (Aynen Korundu) --- */
         body { margin: 0; overflow: hidden; background: #050505; color: #e5e5e5; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; height: 100vh; user-select: none; }
         #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.5; pointer-events: none; }
+        
         .main-content { flex: 1; position: relative; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
-        .top-bar { background: rgba(30, 30, 30, 0.6); backdrop-filter: blur(10px); padding: 15px 25px; margin: 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255, 255, 255, 0.1); }
+        
+        .top-bar { 
+            background: rgba(30, 30, 30, 0.6); backdrop-filter: blur(10px); padding: 15px 25px; margin: 20px; 
+            border-radius: 12px; display: flex; justify-content: space-between; align-items: center; 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
         #admin-panel { display: none; background: rgba(44, 44, 44, 0.9); border-left: 4px solid #46d369; padding: 20px; margin: 0 20px 20px 20px; border-radius: 12px; }
+        
         #player-wrapper { position: relative; width: calc(100% - 40px); margin: 0 auto; aspect-ratio: 16 / 9; background: #000; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
         #player-container { width: 100%; height: 100%; }
         #blocker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; cursor: default; }
         #placeholder-text { position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); color: #888; font-size: 20px; pointer-events: none; letter-spacing: 2px; }
+        
         .custom-controls { background: rgba(31, 31, 31, 0.8); margin: 10px 20px; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; border-radius: 12px; }
+
         .sidebar { width: 350px; background: #111; border-left: 1px solid #333; display: flex; flex-direction: column; z-index: 20; }
         .sidebar-header { padding: 20px; background: #1a1a1a; border-bottom: 1px solid #333; display: flex; gap: 10px; }
         .tab-btn { flex: 1; padding: 10px; border: none; background: #222; color: #888; cursor: pointer; border-radius: 6px; font-weight: bold; }
         .tab-btn.active { background: #46d369; color: #000; }
+        
         #chat-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         #chat-messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { font-size: 14px; padding: 8px 12px; border-radius: 8px; background: #222; max-width: 90%; word-wrap: break-word; margin-bottom: 5px; }
+        .msg { font-size: 14px; padding: 8px 12px; border-radius: 8px; background: #222; max-width: 90%; word-wrap: break-word; }
         .msg.system { background: transparent; color: #888; font-size: 12px; text-align: center; border: 1px solid #333; align-self: center; }
         .msg.warn { color: #e50914; border: 1px solid #e50914; background: rgba(229, 9, 20, 0.1); }
         .msg b { color: #46d369; }
         .chat-input-area { padding: 15px; background: #1a1a1a; border-top: 1px solid #333; display: flex; gap: 10px; }
         #chatInput { flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #444; background: #000; color: white; outline: none; }
+        
         #users-panel { flex: 1; display: none; overflow-y: auto; padding: 15px; }
         .user-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; background: #222; border-radius: 8px; }
         .user-info { display: flex; align-items: center; gap: 8px; font-size: 14px; }
@@ -37,19 +49,41 @@
         .btn-mini { padding: 4px 8px; font-size: 11px; cursor: pointer; border-radius: 4px; border: none; color: white; }
         .btn-ban { background: #e50914; }
         .btn-mute { background: #f39c12; }
-        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.98); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.95); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .hidden { display: none !important; }
+        
         .name-input { padding: 12px; font-size: 16px; border-radius: 6px; border: 1px solid #444; background: #222; color: white; width: 250px; outline: none; margin-bottom: 15px; }
         .btn-action { padding: 10px 20px; cursor: pointer; border-radius: 6px; border: none; background: linear-gradient(135deg, #46d369 0%, #2ea04b 100%); color: white; font-weight: bold; }
-        #admin-login-box { margin-top: 20px; padding: 15px; border-top: 1px solid #333; text-align: center; }
+        
+        .admin-key-btn { background: transparent; border: 1px solid #444; color: #666; padding: 5px 10px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
+        .admin-key-btn:hover { color: #46d369; border-color: #46d369; }
+
+        #admin-popup-card { background: #151515; padding: 30px; border-radius: 12px; border: 1px solid #333; text-align: center; position: relative; }
+        .close-btn { position: absolute; top: 10px; right: 15px; color: #888; cursor: pointer; font-size: 20px; }
+        
         #mute-lock-indicator { display: none; color: #e50914; font-weight: bold; font-size: 12px; margin-left: 10px; }
+        
         @media (max-width: 768px) { body { flex-direction: column; overflow: auto; user-select: auto;} .sidebar { width: 100%; height: 400px; } }
     </style>
 </head>
 <body>
-    <div id="login-overlay">
+
+    <div id="login-overlay" class="overlay">
         <h2 style="color: #46d369; letter-spacing: 2px;">GÜVENLİ ODA</h2>
         <input type="text" id="usernameInput" class="name-input" placeholder="Kod adı?" autocomplete="off" maxlength="15">
         <button class="btn-action" onclick="submitName()">Giriş</button>
+    </div>
+
+    <div id="admin-popup" class="overlay hidden">
+        <div id="admin-popup-card">
+            <div class="close-btn" onclick="toggleAdminPopup()">×</div>
+            <h3 style="color: #46d369;">YÖNETİCİ ERİŞİMİ</h3>
+            <input type="password" id="passInput" class="name-input" placeholder="Şifre" style="margin-bottom: 10px;">
+            <br>
+            <button class="btn-action" onclick="girisYap()">Doğrula</button>
+            <p id="login-msg" style="color: #e50914; font-size: 12px; margin-top: 10px;"></p>
+        </div>
     </div>
 
     <div id="canvas-container"></div>
@@ -57,13 +91,18 @@
     <div class="main-content">
         <div class="top-bar">
             <div id="my-name-display"><i class="fa-solid fa-user"></i> Misafir</div>
-            <div id="status-text" style="color: #aaa;">İzleyici</div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div id="status-text" style="color: #aaa; font-size: 14px;">İzleyici</div>
+                <button class="admin-key-btn" onclick="toggleAdminPopup()" title="Yönetici Girişi">
+                    <i class="fa-solid fa-key"></i>
+                </button>
+            </div>
         </div>
 
         <div id="admin-panel">
-            <h3 style="margin-top: 0; color: #46d369;">Yönetici</h3>
+            <h3 style="margin-top: 0; color: #46d369;">Yönetici Paneli</h3>
             <div style="display: flex; gap: 10px;">
-                <input type="text" id="videoLink" class="name-input" style="width: 100%; margin:0;" placeholder="YouTube URL...">
+                <input type="text" id="videoLink" class="name-input" style="width: 100%; margin:0;" placeholder="YouTube URL (Örn: v=dQw4w9WgXcQ)">
                 <button class="btn-action" onclick="videoDegistir()">YAYINLA</button>
             </div>
         </div>
@@ -103,19 +142,13 @@
 
         <div id="users-panel">
             <div id="user-list-container"></div>
-            <div id="admin-login-box">
-                <p style="color:#666; font-size:12px;">Yönetici Girişi</p>
-                <input type="password" id="passInput" placeholder="****" style="padding:5px; border-radius:4px; border:1px solid #444; background:#000; color:white;">
-                <button class="btn-action" style="padding:5px 10px; font-size:12px;" onclick="girisYap()">OK</button>
-                <p id="login-msg" style="color: #e50914; font-size: 11px; margin-top: 5px;"></p>
-            </div>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // Three.js Arka Plan
+        // Three.js (Aynen)
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -131,7 +164,7 @@
         function animate() { material.uniforms.u_time.value += 0.05; renderer.render(scene, camera); requestAnimationFrame(animate); } animate();
         window.addEventListener('resize', () => { renderer.setSize(window.innerWidth, window.innerHeight); });
 
-        // MANTIK KODLARI
+        // --- İSTEMCİ KODLARI ---
         const socket = io();
         let player, isAdmin = false, isRemote = false, forcedMute = false;
         let pendingSyncData = null;
@@ -140,7 +173,7 @@
             const name = document.getElementById('usernameInput').value;
             if(!name) return alert("İsim gerekli");
             socket.emit('set_username', name);
-            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('login-overlay').classList.add('hidden');
             document.getElementById('my-name-display').innerHTML = `<i class="fa-solid fa-user"></i> ${name.substring(0,15)}`;
         }
 
@@ -156,18 +189,13 @@
             if(inp.value.trim()) { socket.emit('send_message', inp.value); inp.value = ''; }
         }
 
-        // CHAT GEÇMİŞİNİ AL (YENİ)
         socket.on('chat_history', (history) => {
             const box = document.getElementById('chat-messages');
-            box.innerHTML = ''; // Temizle
-            history.forEach(data => {
-                appendMessage(data);
-            });
+            box.innerHTML = '';
+            history.forEach(data => appendMessage(data));
         });
 
-        socket.on('chat_message', (data) => {
-            appendMessage(data);
-        });
+        socket.on('chat_message', (data) => appendMessage(data));
 
         function appendMessage(data) {
             const box = document.getElementById('chat-messages');
@@ -195,9 +223,20 @@
             });
         });
 
+        function toggleAdminPopup() {
+            const popup = document.getElementById('admin-popup');
+            if(popup.classList.contains('hidden')) popup.classList.remove('hidden');
+            else popup.classList.add('hidden');
+            document.getElementById('login-msg').innerText = "";
+            document.getElementById('passInput').value = "";
+        }
+
         function girisYap() {
             const pwd = document.getElementById('passInput').value;
-            if(pwd.length > 0) { document.getElementById('login-msg').innerText = "Kontrol..."; socket.emit('admin_girisi', pwd); }
+            if(pwd.length > 0) { 
+                document.getElementById('login-msg').innerText = "Kontrol ediliyor..."; 
+                socket.emit('admin_girisi', pwd); 
+            }
         }
 
         socket.on('admin_error', (msg) => { document.getElementById('login-msg').innerText = msg; });
@@ -205,16 +244,18 @@
         socket.on('admin_basarili', (success) => {
             if(success) {
                 isAdmin = true;
+                toggleAdminPopup();
                 document.getElementById('admin-panel').style.display = 'block';
                 document.getElementById('blocker').style.display = 'none'; 
                 document.getElementById('status-text').innerText = "YÖNETİCİ";
                 document.getElementById('status-text').style.color = "#46d369";
-                document.getElementById('admin-login-box').style.display = 'none';
+                document.querySelector('.admin-key-btn').style.display = 'none';
             }
         });
 
         function adminAction(targetId, action) { socket.emit('admin_action', { targetId, action }); }
         socket.on('force_disconnect', (reason) => { document.body.innerHTML = `<div style="display:flex;height:100vh;align-items:center;justify-content:center;color:red;font-size:24px;text-align:center;background:black;">🚫<br>${reason}</div>`; });
+        
         socket.on('toggle_mute_lock', (isMuted) => {
             forcedMute = isMuted;
             const lockIcon = document.getElementById('mute-lock-indicator');
@@ -228,29 +269,59 @@
             player = new YT.Player('player', { 
                 height: '100%', width: '100%', 
                 playerVars: { 
-                    'controls': 1, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3, 
-                    'playsinline': 1 // MOBİL UYUMU İÇİN KRİTİK
+                    'controls': 1, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3, 'playsinline': 1 
                 }, 
                 events: { 'onStateChange': onPlayerStateChange, 'onReady': onPlayerReady } 
             }); 
         }
 
-        function onPlayerReady() { if (pendingSyncData) { applySync(pendingSyncData); pendingSyncData = null; } }
+        function onPlayerReady() {
+            // --- OTOMATİK OYNATMA FIX ---
+            // Sayfa yenilendiğinde videonun donmaması için sessiz başlatıyoruz
+            player.mute();
+            document.getElementById('vol-slider').value = 0;
+            updateMuteIcon(0);
+            
+            if (pendingSyncData) {
+                applySync(pendingSyncData);
+                pendingSyncData = null;
+            }
+        }
+
         function videoDegistir() { let url = document.getElementById('videoLink').value; let vId = (url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/)||[])[7]; if(vId && vId.length==11) { document.getElementById('placeholder-text').style.display='none'; player.loadVideoById(vId); socket.emit('video_action', {type:'change', videoId:vId}); } }
+        
         function onPlayerStateChange(event) { if(event.data === YT.PlayerState.PLAYING) document.getElementById('placeholder-text').style.display='none'; if(isRemote || !isAdmin) return; if(event.data === YT.PlayerState.PLAYING) socket.emit('video_action', {type:'play', time:player.getCurrentTime()}); else if(event.data === YT.PlayerState.PAUSED) socket.emit('video_action', {type:'pause', time:player.getCurrentTime()}); }
         
         function applySync(data) {
-            isRemote = true; document.getElementById('placeholder-text').style.display='none'; 
-            if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) { player.loadVideoById(data.videoId, data.time); }
-            if(data.type==='play') { let diff = Math.abs(player.getCurrentTime() - data.time); if(diff > 1) player.seekTo(data.time); player.playVideo(); } 
-            else if(data.type==='pause') { player.seekTo(data.time); player.pauseVideo(); } 
-            else if(data.type==='change') { player.loadVideoById(data.videoId); } 
+            isRemote = true; 
+            document.getElementById('placeholder-text').style.display='none'; 
+            
+            if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) { 
+                player.loadVideoById(data.videoId, data.time); 
+            }
+
+            if(data.type==='play') { 
+                let diff = Math.abs(player.getCurrentTime() - data.time); 
+                // Donukluk sorununu çözmek için 'true' eklendi
+                if(diff > 1) player.seekTo(data.time, true); 
+                player.playVideo(); 
+            } else if(data.type==='pause') { 
+                player.seekTo(data.time, true); 
+                player.pauseVideo(); 
+            } else if(data.type==='change') { 
+                player.loadVideoById(data.videoId); 
+            } 
             setTimeout(()=>isRemote=false, 1000);
         }
-        socket.on('sync_video', (data) => { if (!player || !player.loadVideoById) { pendingSyncData = data; } else { applySync(data); } });
+
+        socket.on('sync_video', (data) => { 
+            if (!player || !player.loadVideoById) { pendingSyncData = data; } 
+            else { applySync(data); } 
+        });
         
-        function toggleMute() { if(forcedMute) return alert("Yönetici tarafından susturuldunuz!"); if(player.isMuted()) { player.unMute(); document.getElementById('vol-slider').value = player.getVolume(); } else { player.mute(); document.getElementById('vol-slider').value = 0; } }
-        function setVolume(v) { if(!forcedMute) player.setVolume(v); }
+        function toggleMute() { if(forcedMute) return alert("Yönetici tarafından susturuldunuz!"); if(player.isMuted()) { player.unMute(); document.getElementById('vol-slider').value = player.getVolume(); updateMuteIcon(player.getVolume()); } else { player.mute(); document.getElementById('vol-slider').value = 0; updateMuteIcon(0); } }
+        function updateMuteIcon(vol) { const icon = document.getElementById('mute-icon'); if(vol == 0) icon.className = "fa-solid fa-volume-xmark"; else if(vol < 50) icon.className = "fa-solid fa-volume-low"; else icon.className = "fa-solid fa-volume-high"; }
+        function setVolume(v) { if(!forcedMute) { player.setVolume(v); updateMuteIcon(v); } }
         function syncNow() { location.reload(); }
         function toggleFullScreen() { var e = document.getElementById("player-wrapper"); if(!document.fullscreenElement) e.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); }
     </script>
