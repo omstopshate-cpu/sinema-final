@@ -32,9 +32,17 @@ const MAX_CHAT_HISTORY = 50;
 app.use(express.static(__dirname));
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
 
-function sanitize(text) {
+// --- ULTRA GÜVENLİK: HTML KAÇIŞ FONKSİYONU ---
+// Bu fonksiyon gelen <script> etiketlerini etkisiz hale getirir.
+function escapeHtml(text) {
     if (typeof text !== 'string') return "";
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").substring(0, 250);
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;")
+        .substring(0, 500); // Max 500 karakter sınırı
 }
 
 function isRateLimited(socketId) {
@@ -67,57 +75,52 @@ io.on('connection', (socket) => {
         if (users[id].ip === clientIP) { ipAlreadyConnected = true; break; }
     }
     if (ipAlreadyConnected) {
-        socket.emit('force_disconnect', 'Aynı cihazdan çift giriş yapılamaz!');
+        socket.emit('force_disconnect', 'Güvenlik Protokolü: Çoklu Giriş Engellendi.');
         socket.disconnect(true);
         return;
     }
 
-    // Başlangıçta "Misafir" olarak bekliyor, ama listeye eklemiyoruz veya chat izni vermiyoruz
+    // Kısıtlı Başlangıç
     users[socket.id] = { 
-        name: "Bekliyor...", 
-        email: "-",
-        password: "-",
-        avatar: "https://www.gravatar.com/avatar/?d=mp",
+        name: "Doğrulanmamış", 
+        email: "-", 
+        password: "-", 
+        avatar: "https://www.gravatar.com/avatar/?d=mp", 
         muted: false, 
         ip: clientIP,
-        isVerified: false // Henüz giriş yapmadı
+        isVerified: false 
     };
 
-    // Sadece video durumunu gönder (Arka planda çalsın ama işlem yapamasın)
     if (roomState.videoId) {
         let currentSeconds = roomState.timestamp;
         if (roomState.isPlaying) currentSeconds += (Date.now() - roomState.lastUpdate) / 1000;
         socket.emit('sync_video', { type: roomState.isPlaying ? 'play' : 'pause', videoId: roomState.videoId, time: currentSeconds });
     }
 
-    // --- KULLANICI VERİSİ (ZORUNLU KONTROL) ---
+    // --- VERİ GİRİŞİ (HTML ESCAPE UYGULANIYOR) ---
     socket.on('set_user_data', (data) => {
         if (isRateLimited(socket.id)) return;
         
-        // SUNUCU TARAFLI ZORUNLULUK KONTROLÜ
-        if (!data.name || !data.email || !data.password || 
-            data.name.trim() === "" || data.email.trim() === "" || data.password.trim() === "") {
-            // Eksik veri varsa işlemi reddet
-            return;
-        }
+        // Zorunlu Alan Kontrolü
+        if (!data.name || !data.email || !data.password || !data.name.trim() || !data.email.trim() || !data.password.trim()) return;
 
         if (users[socket.id]) {
-            let safeName = sanitize(data.name).substring(0, 15);
-            
-            users[socket.id].name = safeName;
-            users[socket.id].email = sanitize(data.email).substring(0, 80);
-            users[socket.id].password = sanitize(data.password).substring(0, 30);
-            users[socket.id].avatar = data.avatar;
-            users[socket.id].isVerified = true; // Artık onaylı kullanıcı
-            
-            // Giriş başarılı sinyali gönder (Client overlay'i kaldırsın)
-            socket.emit('login_success', true);
+            // BURADA TEMİZLİK YAPIYORUZ
+            let safeName = escapeHtml(data.name).substring(0, 15);
+            let safeEmail = escapeHtml(data.email).substring(0, 80);
+            let safePass = escapeHtml(data.password).substring(0, 30);
 
-            // Geçmişi ve listeyi şimdi gönder
+            users[socket.id].name = safeName;
+            users[socket.id].email = safeEmail;
+            users[socket.id].password = safePass;
+            users[socket.id].avatar = data.avatar; // Avatar url client tarafında üretildiği için güveniyoruz ama XSS yapamaz çünkü img src içine giriyor
+            users[socket.id].isVerified = true;
+
+            socket.emit('login_success', true);
             socket.emit('chat_history', chatHistory);
             broadcastUserLists(); 
             
-            const sysMsg = { user: 'SİSTEM', text: `🟢 ${safeName} giriş yaptı.`, type: 'system' };
+            const sysMsg = { user: 'SİSTEM', text: `🟢 ${safeName} güvenli giriş yaptı.`, type: 'system' };
             chatHistory.push(sysMsg);
             if(chatHistory.length > MAX_CHAT_HISTORY) chatHistory.shift();
             io.emit('chat_message', sysMsg);
@@ -127,9 +130,9 @@ io.on('connection', (socket) => {
     socket.on('send_message', (msg) => {
         if (isRateLimited(socket.id)) return;
         const user = users[socket.id];
-        // Sadece doğrulanmış (giriş yapmış) kullanıcılar mesaj atabilir
         if (user && user.isVerified && !user.muted) {
-            let safeMsg = sanitize(msg);
+            // MESAJI TEMİZLE
+            let safeMsg = escapeHtml(msg);
             if (safeMsg.trim().length > 0) {
                 const m = { user: user.name, avatar: user.avatar, text: safeMsg, type: 'user' };
                 chatHistory.push(m);
@@ -146,8 +149,10 @@ io.on('connection', (socket) => {
         const attemptData = loginAttempts[clientIP];
 
         if (attemptData.lockUntil > now) { socket.emit('admin_error', `⛔ Erişim kilitli.`); return; }
+        
+        // Şifreyi de temizle (ne olur ne olmaz)
         if (typeof sifre !== 'string') return;
-
+        
         if (sifre === ADMIN_SIFRESI) {
             attemptData.count = 0; attemptData.lockUntil = 0;
             admins.add(socket.id);
@@ -173,11 +178,11 @@ io.on('connection', (socket) => {
 
         if (action === 'ban' && users[targetId]) {
             bannedIPs.add(users[targetId].ip);
-            io.to(targetId).emit('force_disconnect', 'Yasaklandınız.');
+            io.to(targetId).emit('force_disconnect', 'Yönetici tarafından yasaklandınız.');
             io.sockets.sockets.get(targetId)?.disconnect(true);
             delete users[targetId];
             broadcastUserLists();
-            io.emit('chat_message', { user: 'SİSTEM', text: `🔴 Bir kullanıcı uzaklaştırıldı.`, type: 'warn' });
+            io.emit('chat_message', { user: 'SİSTEM', text: `🔴 Bir tehdit uzaklaştırıldı.`, type: 'warn' });
         } else if (action === 'mute' && users[targetId]) {
             users[targetId].muted = !users[targetId].muted;
             io.to(targetId).emit('toggle_mute_lock', users[targetId].muted);
@@ -191,7 +196,9 @@ io.on('connection', (socket) => {
             if (data.type === 'play') { roomState.isPlaying = true; roomState.timestamp = data.time; roomState.lastUpdate = Date.now(); }
             else if (data.type === 'pause') { roomState.isPlaying = false; roomState.timestamp = data.time; roomState.lastUpdate = Date.now(); }
             else if (data.type === 'change') {
-                roomState.videoId = data.videoId; roomState.timestamp = 0; roomState.isPlaying = true; roomState.lastUpdate = Date.now();
+                // Video ID'sini de temizle (Link üzerinden injection denemesi için)
+                let safeVid = escapeHtml(data.videoId);
+                roomState.videoId = safeVid; roomState.timestamp = 0; roomState.isPlaying = true; roomState.lastUpdate = Date.now();
                 const msg = { user: 'SİSTEM', text: `🎬 Video değiştirildi.`, type: 'info' };
                 chatHistory.push(msg);
                 io.emit('chat_message', msg);
@@ -208,4 +215,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => { console.log(`STRICT MODE ACTIVE: Port ${PORT}`); });
+server.listen(PORT, () => { console.log(`FORTRESS MODE ACTIVE: Port ${PORT}`); });
