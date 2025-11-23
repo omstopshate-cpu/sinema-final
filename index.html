@@ -2,11 +2,12 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>WatchTogether - Auto Sync</title>
+    <title>WatchTogether - Final</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Önceki CSS'lerin AYNISI (Değişiklik yok, yer kaplamaması için özet geçiyorum) */
+        /* STYLES AYNI KALDI - ÖZET */
         body { margin: 0; overflow: hidden; background: #050505; color: #e5e5e5; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; height: 100vh; user-select: none; }
         #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.5; pointer-events: none; }
         .main-content { flex: 1; position: relative; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
@@ -23,7 +24,7 @@
         .tab-btn.active { background: #46d369; color: #000; }
         #chat-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         #chat-messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { font-size: 14px; padding: 8px 12px; border-radius: 8px; background: #222; max-width: 90%; word-wrap: break-word; }
+        .msg { font-size: 14px; padding: 8px 12px; border-radius: 8px; background: #222; max-width: 90%; word-wrap: break-word; margin-bottom: 5px; }
         .msg.system { background: transparent; color: #888; font-size: 12px; text-align: center; border: 1px solid #333; align-self: center; }
         .msg.warn { color: #e50914; border: 1px solid #e50914; background: rgba(229, 9, 20, 0.1); }
         .msg b { color: #46d369; }
@@ -46,7 +47,7 @@
 </head>
 <body>
     <div id="login-overlay">
-        <h2 style="color: #46d369; letter-spacing: 2px;">AUTO SYNC</h2>
+        <h2 style="color: #46d369; letter-spacing: 2px;">GÜVENLİ ODA</h2>
         <input type="text" id="usernameInput" class="name-input" placeholder="Kod adı?" autocomplete="off" maxlength="15">
         <button class="btn-action" onclick="submitName()">Giriş</button>
     </div>
@@ -130,13 +131,10 @@
         function animate() { material.uniforms.u_time.value += 0.05; renderer.render(scene, camera); requestAnimationFrame(animate); } animate();
         window.addEventListener('resize', () => { renderer.setSize(window.innerWidth, window.innerHeight); });
 
-        // --- MANTIK KODLARI ---
+        // MANTIK KODLARI
         const socket = io();
         let player, isAdmin = false, isRemote = false, forcedMute = false;
-        
-        // --- YENİ: BEKLEYEN SENKRON VERİSİ ---
         let pendingSyncData = null;
-        // -------------------------------------
 
         function submitName() {
             const name = document.getElementById('usernameInput').value;
@@ -158,14 +156,27 @@
             if(inp.value.trim()) { socket.emit('send_message', inp.value); inp.value = ''; }
         }
 
+        // CHAT GEÇMİŞİNİ AL (YENİ)
+        socket.on('chat_history', (history) => {
+            const box = document.getElementById('chat-messages');
+            box.innerHTML = ''; // Temizle
+            history.forEach(data => {
+                appendMessage(data);
+            });
+        });
+
         socket.on('chat_message', (data) => {
+            appendMessage(data);
+        });
+
+        function appendMessage(data) {
             const box = document.getElementById('chat-messages');
             const div = document.createElement('div');
             div.className = `msg ${data.type}`;
             if(data.type === 'system') div.innerText = data.text;
             else { div.innerHTML = `<b>${data.user}:</b> <span class="content"></span>`; div.querySelector('.content').innerText = data.text; }
             box.appendChild(div); box.scrollTop = box.scrollHeight;
-        });
+        }
 
         socket.on('update_user_list', (users) => {
             const container = document.getElementById('user-list-container');
@@ -216,71 +227,31 @@
         function onYouTubeIframeAPIReady() { 
             player = new YT.Player('player', { 
                 height: '100%', width: '100%', 
-                playerVars: { 'controls': 1, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3 }, 
-                events: { 
-                    'onStateChange': onPlayerStateChange,
-                    'onReady': onPlayerReady // YENİ: Player hazır olunca tetikle
-                } 
+                playerVars: { 
+                    'controls': 1, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3, 
+                    'playsinline': 1 // MOBİL UYUMU İÇİN KRİTİK
+                }, 
+                events: { 'onStateChange': onPlayerStateChange, 'onReady': onPlayerReady } 
             }); 
         }
 
-        function onPlayerReady() {
-            // Player hazır olduğunda bekleyen bir senkron verisi varsa uygula
-            if (pendingSyncData) {
-                applySync(pendingSyncData);
-                pendingSyncData = null;
-            }
-        }
-
+        function onPlayerReady() { if (pendingSyncData) { applySync(pendingSyncData); pendingSyncData = null; } }
         function videoDegistir() { let url = document.getElementById('videoLink').value; let vId = (url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/)||[])[7]; if(vId && vId.length==11) { document.getElementById('placeholder-text').style.display='none'; player.loadVideoById(vId); socket.emit('video_action', {type:'change', videoId:vId}); } }
+        function onPlayerStateChange(event) { if(event.data === YT.PlayerState.PLAYING) document.getElementById('placeholder-text').style.display='none'; if(isRemote || !isAdmin) return; if(event.data === YT.PlayerState.PLAYING) socket.emit('video_action', {type:'play', time:player.getCurrentTime()}); else if(event.data === YT.PlayerState.PAUSED) socket.emit('video_action', {type:'pause', time:player.getCurrentTime()}); }
         
-        function onPlayerStateChange(event) { 
-            if(event.data === YT.PlayerState.PLAYING) document.getElementById('placeholder-text').style.display='none'; 
-            if(isRemote || !isAdmin) return; 
-            if(event.data === YT.PlayerState.PLAYING) socket.emit('video_action', {type:'play', time:player.getCurrentTime()}); 
-            else if(event.data === YT.PlayerState.PAUSED) socket.emit('video_action', {type:'pause', time:player.getCurrentTime()}); 
-        }
-
-        // --- SYNC MANTIĞI (GÜNCELLENDİ) ---
         function applySync(data) {
-            isRemote = true; 
-            document.getElementById('placeholder-text').style.display='none'; 
-            
-            // Video ID kontrolü
-            if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) {
-                player.loadVideoById(data.videoId, data.time);
-            }
-
-            if(data.type==='play') { 
-                let diff = Math.abs(player.getCurrentTime() - data.time); 
-                if(diff > 1) player.seekTo(data.time); 
-                player.playVideo(); 
-            } else if(data.type==='pause') { 
-                player.seekTo(data.time); 
-                player.pauseVideo(); 
-            } else if(data.type==='change') { 
-                player.loadVideoById(data.videoId); 
-            } 
+            isRemote = true; document.getElementById('placeholder-text').style.display='none'; 
+            if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) { player.loadVideoById(data.videoId, data.time); }
+            if(data.type==='play') { let diff = Math.abs(player.getCurrentTime() - data.time); if(diff > 1) player.seekTo(data.time); player.playVideo(); } 
+            else if(data.type==='pause') { player.seekTo(data.time); player.pauseVideo(); } 
+            else if(data.type==='change') { player.loadVideoById(data.videoId); } 
             setTimeout(()=>isRemote=false, 1000);
         }
-
-        socket.on('sync_video', (data) => {
-            // Eğer player henüz hazır değilse, veriyi beklet
-            if (!player || !player.loadVideoById) {
-                pendingSyncData = data;
-            } else {
-                applySync(data);
-            }
-        });
-        // ----------------------------------
-
+        socket.on('sync_video', (data) => { if (!player || !player.loadVideoById) { pendingSyncData = data; } else { applySync(data); } });
+        
         function toggleMute() { if(forcedMute) return alert("Yönetici tarafından susturuldunuz!"); if(player.isMuted()) { player.unMute(); document.getElementById('vol-slider').value = player.getVolume(); } else { player.mute(); document.getElementById('vol-slider').value = 0; } }
         function setVolume(v) { if(!forcedMute) player.setVolume(v); }
-        function syncNow() { 
-             // Sayfayı yenilemeye gerek yok, sunucudan son durumu tekrar isteyebiliriz ama
-             // zaten bağlanınca otomatik geliyor. Manuel sync için:
-             location.reload();
-        }
+        function syncNow() { location.reload(); }
         function toggleFullScreen() { var e = document.getElementById("player-wrapper"); if(!document.fullscreenElement) e.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); }
     </script>
 </body>
