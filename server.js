@@ -6,52 +6,22 @@ const helmet = require('helmet');
 
 const app = express();
 
-// 1. HTTP GÜVENLİK DUVARI
+// GÜVENLİK DUVARI (Hafifletilmiş - Scriptlere izin ver)
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://www.youtube.com", "https://s.ytimg.com", "https://cdnjs.cloudflare.com"],
-            frameSrc: ["'self'", "https://www.youtube.com"],
-            imgSrc: ["'self'", "data:", "https://www.gravatar.com"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
-            fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
-            connectSrc: ["'self'", "https://www.youtube.com", "https://googleads.g.doubleclick.net"],
-            upgradeInsecureRequests: [],
-        },
-    },
-    crossOriginEmbedderPolicy: false,
-    xPoweredBy: false // Sunucu türünü gizle (Node.js olduğunu anlamasınlar)
+    contentSecurityPolicy: false,
 }));
 
 const server = http.createServer(app);
-
-// --- KRİTİK: CORS KİLİDİ ---
-// Render'da çalışırken otomatik olarak kendi domainini tanır.
-// Localhost'ta veya Render'da sadece KENDİ ADRESİNE izin verir.
 const io = new Server(server, {
-    cors: {
-        origin: (origin, callback) => {
-            // Origin yoksa (sunucu içi istek) veya kendi domainimizse izin ver
-            if (!origin || origin.includes("onrender.com") || origin.includes("localhost")) {
-                callback(null, true);
-            } else {
-                callback(new Error('Erişim Reddedildi: Yetkisiz Kaynak (CORS).'));
-            }
-        },
-        methods: ["GET", "POST"],
-        credentials: true
-    },
-    allowEIO3: true // Eski tarayıcı uyumluluğu (Opsiyonel)
+    cors: { origin: "*", methods: ["GET", "POST"], credentials: true }
 });
 
 const ADMIN_SIFRESI = process.env.ADMIN_KEY || "1680"; 
 
-// GÜVENLİK SABİTLERİ
-const MAX_LOGIN_ATTEMPTS = 3;
-const LOCK_TIME = 10 * 60 * 1000; // Cezayı 10 dakikaya çıkardık
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCK_TIME = 2 * 60 * 1000; 
 const RATE_LIMIT_WINDOW = 1000; 
-const MAX_REQUESTS_PER_SEC = 6; 
+const MAX_REQUESTS_PER_SEC = 10; 
 
 const loginAttempts = {}; 
 const requestCounts = {}; 
@@ -67,26 +37,9 @@ const MAX_CHAT_HISTORY = 50;
 app.use(express.static(__dirname));
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
 
-// --- DERİN TEMİZLİK ---
 function sanitize(text) {
     if (typeof text !== 'string') return "";
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;")
-        .replace(/`/g, "&#96;")
-        .replace(/\//g, "&#x2F;")
-        .substring(0, 250);
-}
-
-function logToAdmin(type, message, ip = "-") {
-    const timestamp = new Date().toLocaleTimeString('tr-TR');
-    console.log(`[${type}] ${message}`);
-    for (let adminId of admins) {
-        io.to(adminId).emit('jarvis_log', { time: timestamp, type: type, msg: message, ip: ip });
-    }
+    return text.replace(/</g, "&lt;").replace(/>/g, "&gt;").substring(0, 250);
 }
 
 function isRateLimited(socketId) {
@@ -109,34 +62,20 @@ function broadcastUserLists() {
     }
 }
 
-// --- MIDDLEWARE: PAKET İNCELEME (Packet Inspection) ---
-io.use((socket, next) => {
-    const clientIP = socket.handshake.headers['x-forwarded-for'] ? socket.handshake.headers['x-forwarded-for'].split(',')[0] : socket.handshake.address;
-    
-    if (bannedIPs.has(clientIP)) {
-        return next(new Error("BAN_IP"));
-    }
-    next();
-});
-
 io.on('connection', (socket) => {
     const clientIP = socket.handshake.headers['x-forwarded-for'] ? socket.handshake.headers['x-forwarded-for'].split(',')[0] : socket.handshake.address;
 
-    // Çift Sekme Engeli
+    if (bannedIPs.has(clientIP)) { socket.disconnect(true); return; }
+
     const oldSocketId = Object.keys(users).find(id => users[id].ip === clientIP);
     if (oldSocketId) {
-        const oldSocket = io.sockets.sockets.get(oldSocketId);
-        if (oldSocket) {
-            oldSocket.emit('force_disconnect', 'Aynı ağdan yeni bağlantı algılandı. Eski oturum kapatıldı.');
-            oldSocket.disconnect(true);
-        }
+        io.sockets.sockets.get(oldSocketId)?.disconnect(true);
         delete users[oldSocketId];
         if (admins.has(oldSocketId)) admins.delete(oldSocketId);
-        logToAdmin('INFO', `Oturum yenilendi.`, clientIP);
     }
 
     users[socket.id] = { 
-        name: "Bilinmiyor", email: "-", password: "-", 
+        name: "Bekliyor...", email: "-", password: "-", 
         avatar: "https://www.gravatar.com/avatar/?d=mp", 
         muted: false, ip: clientIP, isVerified: false 
     };
@@ -147,25 +86,13 @@ io.on('connection', (socket) => {
         socket.emit('sync_video', { type: roomState.isPlaying ? 'play' : 'pause', videoId: roomState.videoId, time: currentSeconds });
     }
 
-    // --- GİRİŞ İŞLEMİ ---
+    // --- GİRİŞ İŞLEMİ (TUZAKSIZ) ---
     socket.on('set_user_data', (data) => {
         if (isRateLimited(socket.id)) return;
 
-        // HONEYPOT
-        if (data.secret_token && data.secret_token.length > 0) {
-            logToAdmin('DANGER', `BOT YAKALANDI. IP Banlandı.`, clientIP);
-            bannedIPs.add(clientIP);
-            socket.disconnect(true);
-            return;
-        }
-
-        // Veri Bütünlüğü Kontrolü
-        if (!data.name || !data.email || !data.password) { socket.emit('login_failed', 'Eksik veri.'); return; }
-
-        // Regex ile Format Kontrolü (Yeni Katman)
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(data.email)) {
-            socket.emit('login_failed', 'Geçersiz e-posta formatı.');
+        // Basit Veri Kontrolü
+        if (!data.name || !data.email || !data.password) {
+            socket.emit('login_failed', 'Eksik bilgi gönderildi.');
             return;
         }
 
@@ -173,15 +100,14 @@ io.on('connection', (socket) => {
         let safeEmail = sanitize(data.email).substring(0, 80).toLowerCase();
         let safePass = sanitize(data.password).substring(0, 30);
 
-        // Şifre Kilidi
-        if (registeredUsers[safeEmail] && registeredUsers[safeEmail] !== safePass) {
-            socket.emit('login_failed', '⛔ Bu e-posta adresi için şifre hatalı!');
-            logToAdmin('WARN', `Hatalı şifre giriş denemesi: ${safeEmail}`, clientIP);
-            return;
-        }
-        if (!registeredUsers[safeEmail]) {
+        // Şifre Kontrolü
+        if (registeredUsers[safeEmail]) {
+            if (registeredUsers[safeEmail] !== safePass) {
+                socket.emit('login_failed', '⛔ Şifre yanlış! (Bu mail daha önce alındı)');
+                return;
+            }
+        } else {
             registeredUsers[safeEmail] = safePass;
-            logToAdmin('SUCCESS', `Yeni kayıt oluşturuldu: ${safeEmail}`, clientIP);
         }
 
         if (users[socket.id]) {
@@ -195,7 +121,7 @@ io.on('connection', (socket) => {
             socket.emit('chat_history', chatHistory);
             broadcastUserLists(); 
             
-            const sysMsg = { user: 'SİSTEM', text: `🟢 ${safeName} sisteme dahil oldu.`, type: 'system' };
+            const sysMsg = { user: 'SİSTEM', text: `🟢 ${safeName} katıldı.`, type: 'system' };
             chatHistory.push(sysMsg);
             if(chatHistory.length > MAX_CHAT_HISTORY) chatHistory.shift();
             io.emit('chat_message', sysMsg);
@@ -222,32 +148,28 @@ io.on('connection', (socket) => {
         if (!loginAttempts[clientIP]) loginAttempts[clientIP] = { count: 0, lockUntil: 0 };
         
         if (loginAttempts[clientIP].lockUntil > now) { 
-            socket.emit('admin_error', `⛔ GÜVENLİK KİLİDİ AKTİF.`); 
-            return; 
+            socket.emit('admin_error', `⛔ Kilitli.`); return; 
         }
 
-        if (sifre === ADMIN_SIFRESI) {
-            loginAttempts[clientIP].count = 0; 
-            loginAttempts[clientIP].lockUntil = 0;
-            admins.add(socket.id);
-            socket.emit('admin_basarili', true);
-            logToAdmin('SUCCESS', `YÖNETİCİ ERİŞİMİ SAĞLANDI.`, clientIP);
-            
-            socket.emit('chat_message', { user: 'SİSTEM', text: `🛡️ Yönetici paneli aktif.`, type: 'system' });
-            socket.emit('admin_spy_list', users);
-            socket.emit('sync_video', { type: roomState.isPlaying ? 'play' : 'pause', videoId: roomState.videoId, time: roomState.timestamp });
-        } else {
+        if (typeof sifre !== 'string' || sifre !== ADMIN_SIFRESI) {
             loginAttempts[clientIP].count++;
-            logToAdmin('WARN', `Başarısız yönetici giriş denemesi.`, clientIP);
             if (loginAttempts[clientIP].count >= MAX_LOGIN_ATTEMPTS) {
                 loginAttempts[clientIP].lockUntil = now + LOCK_TIME;
-                socket.emit('admin_error', `⛔ 10 DAKİKA KİLİT.`);
-                logToAdmin('DANGER', `IP KİLİTLENDİ (Brute Force).`, clientIP);
+                socket.emit('admin_error', `⛔ Çok deneme.`);
             } else {
-                socket.emit('admin_error', `❌ Geçersiz Protokol.`);
+                socket.emit('admin_error', `❌ Hatalı.`);
             }
             socket.emit('admin_basarili', false);
+            return;
         }
+
+        loginAttempts[clientIP].count = 0; 
+        loginAttempts[clientIP].lockUntil = 0;
+        admins.add(socket.id);
+        socket.emit('admin_basarili', true);
+        socket.emit('chat_message', { user: 'SİSTEM', text: `🛡️ Yönetici Aktif.`, type: 'system' });
+        socket.emit('admin_spy_list', users);
+        socket.emit('sync_video', { type: roomState.isPlaying ? 'play' : 'pause', videoId: roomState.videoId, time: roomState.timestamp });
     });
 
     socket.on('admin_action', (data) => {
@@ -256,12 +178,11 @@ io.on('connection', (socket) => {
 
         if (action === 'ban' && users[targetId]) {
             bannedIPs.add(users[targetId].ip);
-            io.to(targetId).emit('force_disconnect', 'ERİŞİM ENGELLENDİ: Güvenlik ihlali.');
+            io.to(targetId).emit('force_disconnect', 'Yasaklandınız.');
             io.sockets.sockets.get(targetId)?.disconnect(true);
             delete users[targetId];
             broadcastUserLists();
-            io.emit('chat_message', { user: 'SİSTEM', text: `🔴 Tehdit unsuru uzaklaştırıldı.`, type: 'warn' });
-            logToAdmin('DANGER', `Kullanıcı BANLANDI: ${users[targetId]?.name || 'Bilinmiyor'}`, users[targetId]?.ip);
+            io.emit('chat_message', { user: 'SİSTEM', text: `🔴 Uzaklaştırıldı.`, type: 'warn' });
         } else if (action === 'mute' && users[targetId]) {
             users[targetId].muted = !users[targetId].muted;
             io.to(targetId).emit('toggle_mute_lock', users[targetId].muted);
@@ -278,10 +199,9 @@ io.on('connection', (socket) => {
             else if (data.type === 'pause') { roomState.isPlaying = false; roomState.timestamp = data.time; roomState.lastUpdate = Date.now(); }
             else if (data.type === 'change') {
                 roomState.videoId = data.videoId; roomState.timestamp = 0; roomState.isPlaying = true; roomState.lastUpdate = Date.now();
-                const msg = { user: 'SİSTEM', text: `🎬 Medya akışı güncellendi.`, type: 'info' };
+                const msg = { user: 'SİSTEM', text: `🎬 Video değiştirildi.`, type: 'info' };
                 chatHistory.push(msg);
                 io.emit('chat_message', msg);
-                logToAdmin('INFO', `Yeni video yüklendi. ID: ${data.videoId}`, clientIP);
             }
             socket.broadcast.emit('sync_video', data);
         }
@@ -295,4 +215,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => { console.log(`JARVIS PROTOCOL OMEGA ACTIVE: Port ${PORT}`); });
+server.listen(PORT, () => { console.log(`CLEAN SERVER ACTIVE: Port ${PORT}`); });
