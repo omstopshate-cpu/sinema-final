@@ -2,8 +2,9 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>WatchTogether // Mobile</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <title>WatchTogether // Iron Dome</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;500;700&display=swap" rel="stylesheet">
@@ -11,168 +12,67 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
     <style>
-        /* --- 0.1% DESIGN TOKENS --- */
-        :root {
-            --bg-color: #08080b;
-            --glass-surface: rgba(255, 255, 255, 0.03);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --primary-accent: #a855f7;
-            --secondary-accent: #3b82f6;
-            --text-main: #ffffff;
-            --text-muted: #94a3b8;
-            --radius-lg: 24px;
-            --radius-md: 16px;
-        }
-
+        /* --- TASARIM AYNEN KORUNDU (LÜKS & MODERN) --- */
+        :root { --bg-color: #08080b; --glass-surface: rgba(255, 255, 255, 0.03); --glass-border: rgba(255, 255, 255, 0.08); --primary-accent: #a855f7; --secondary-accent: #3b82f6; --text-main: #ffffff; --text-muted: #94a3b8; --radius-lg: 24px; --radius-md: 16px; }
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
-
-        body {
-            margin: 0; padding: 0; background: var(--bg-color);
-            color: var(--text-main); font-family: 'Manrope', sans-serif;
-            display: flex; flex-direction: column;
-            height: 100vh; height: 100dvh; /* Mobil tarayıcı barı sorunu için */
-            overflow: hidden;
-        }
-
-        /* --- ARKA PLAN --- */
+        body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-main); font-family: 'Manrope', sans-serif; display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
         #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
-        .noise-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 0; pointer-events: none; opacity: 0.07;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E");
-        }
-
-        /* --- CAM STİLİ --- */
-        .glass-panel {
-            background: var(--glass-surface);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-
-        /* --- GİRİŞ EKRANI --- */
-        .overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(5, 5, 8, 0.8); backdrop-filter: blur(15px);
-            z-index: 9999; display: flex; justify-content: center; align-items: center;
-            padding: 20px;
-        }
+        .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: 0.07; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E"); }
+        .glass-panel { background: var(--glass-surface); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5, 5, 8, 0.8); backdrop-filter: blur(15px); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .hidden { display: none !important; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
-
         .login-card { width: 100%; max-width: 400px; padding: 30px; border-radius: var(--radius-lg); text-align: center; }
         .brand-logo { font-size: 28px; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, #fff 0%, #94a3b8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        
         .avatar-wrapper { width: 80px; height: 80px; margin: 20px auto; padding: 3px; background: linear-gradient(135deg, var(--primary-accent), var(--secondary-accent)); border-radius: 50%; }
         .avatar-wrapper img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid var(--bg-color); }
-
-        .input-field { width: 100%; padding: 14px; margin-bottom: 10px; background: rgba(255,255,255,0.08); border: 1px solid transparent; border-radius: var(--radius-md); color: #fff; font-size: 16px; } /* Mobilde 16px font zoom yapmaz */
+        .input-field { width: 100%; padding: 14px; margin-bottom: 10px; background: rgba(255,255,255,0.08); border: 1px solid transparent; border-radius: var(--radius-md); color: #fff; font-size: 16px; }
         .input-field:focus { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.2); }
-        
         .btn-primary { width: 100%; padding: 14px; margin-top: 10px; background: #fff; color: #000; border: none; border-radius: var(--radius-md); font-weight: 700; font-size: 16px; cursor: pointer; }
         .btn-primary:active { transform: scale(0.98); }
-
-        /* --- ANA ARAYÜZ (MOBİL DÜZEN) --- */
-        .app-container {
-            display: flex; width: 100%; height: 100%; z-index: 1; 
-            padding: 20px; gap: 20px; opacity: 0;
-        }
-
-        /* SOL: VİDEO & KONTROLLER */
-        .main-stage {
-            flex: 2; display: flex; flex-direction: column; gap: 15px;
-            min-width: 0; /* Flex taşma sorunu için */
-        }
-
+        .app-container { display: flex; width: 100%; height: 100%; z-index: 1; padding: 20px; gap: 20px; opacity: 0; }
+        .main-stage { flex: 2; display: flex; flex-direction: column; gap: 15px; min-width: 0; }
         .nav-bar { display: flex; justify-content: space-between; align-items: center; }
         .user-pill { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-radius: 50px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); }
         .user-pill img { width: 24px; height: 24px; border-radius: 50%; }
         .admin-trigger { width: 36px; height: 36px; border-radius: 50%; border: none; background: rgba(255,255,255,0.05); color: #aaa; font-size: 14px; }
-
-        .cinema-display {
-            width: 100%; aspect-ratio: 16/9; position: relative; 
-            border-radius: var(--radius-md); overflow: hidden; 
-            background: #000; border: 1px solid var(--glass-border);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            flex-shrink: 0; /* Videonun küçülmesini engelle */
-        }
+        .cinema-display { width: 100%; aspect-ratio: 16/9; position: relative; border-radius: var(--radius-md); overflow: hidden; background: #000; border: 1px solid var(--glass-border); box-shadow: 0 10px 30px rgba(0,0,0,0.5); flex-shrink: 0; }
         #player-wrapper, #player, #blocker { width: 100%; height: 100%; position: absolute; }
         #blocker { z-index: 10; }
         #placeholder-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.3); font-size: 14px; text-align: center;}
-
-        /* KONTROL PANELİ */
-        .control-dock {
-            display: flex; flex-direction: column; gap: 10px;
-            padding: 15px; border-radius: var(--radius-md);
-        }
-        
+        .control-dock { display: flex; flex-direction: column; gap: 10px; padding: 15px; border-radius: var(--radius-md); }
         .progress-container { display: flex; align-items: center; gap: 10px; }
         .time-display { font-size: 11px; color: var(--text-muted); min-width: 35px; text-align: center; }
         input[type=range].seek-slider { -webkit-appearance: none; width: 100%; background: transparent; height: 20px; }
         input[type=range].seek-slider::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
         input[type=range].seek-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 14px; width: 14px; border-radius: 50%; background: var(--primary-accent); margin-top: -5px; }
-
         .dock-bottom { display: flex; justify-content: space-between; align-items: center; }
         .play-btn { width: 42px; height: 42px; border-radius: 50%; border: none; background: #fff; color: #000; font-size: 16px; display: flex; align-items: center; justify-content: center; }
         .icon-btn { background: transparent; border: none; color: #fff; font-size: 18px; padding: 5px; opacity: 0.8; }
-        
-        /* SAĞ: CHAT */
-        .sidebar {
-            flex: 1; width: 320px; display: flex; flex-direction: column; 
-            border-radius: var(--radius-lg); overflow: hidden; min-width: 0;
-        }
+        .sidebar { flex: 1; width: 320px; display: flex; flex-direction: column; border-radius: var(--radius-lg); overflow: hidden; min-width: 0; }
         .tabs { display: flex; padding: 5px; border-bottom: 1px solid var(--glass-border); }
         .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 600; }
         .tab-btn.active { background: rgba(255,255,255,0.05); color: #fff; }
-
         .content-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
         .input-bar { padding: 10px; border-top: 1px solid var(--glass-border); display: flex; gap: 8px; }
         .chat-input { flex: 1; background: rgba(0,0,0,0.3); border: none; padding: 10px 15px; border-radius: 50px; color: #fff; font-size: 14px; }
         .send-btn { width: 38px; height: 38px; border-radius: 50%; border: none; background: var(--secondary-accent); color: #fff; display: flex; justify-content: center; align-items: center; }
-
-        /* Mesaj Balonları */
         .msg { display: flex; gap: 8px; align-items: flex-end; }
         .msg-img { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; }
+        .msg-content { display: flex; flex-direction: column; max-width: 85%; }
         .msg-bubble { background: rgba(255,255,255,0.08); padding: 8px 12px; border-radius: 16px; border-bottom-left-radius: 2px; font-size: 13px; line-height: 1.3; color: #eee; word-wrap: break-word; }
-        .msg.system .msg-bubble { background: transparent; border: 1px solid rgba(255,255,255,0.1); font-size: 11px; color: #aaa; padding: 4px 10px; }
-
-        /* User List */
+        .msg-name { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; margin-left: 2px; }
+        .msg.system .msg-bubble { background: transparent; border: 1px solid rgba(255,255,255,0.1); font-size: 11px; color: #aaa; padding: 4px 10px; align-self: center; }
         .user-row { display: flex; align-items: center; justify-content: space-between; padding: 10px; background: rgba(255,255,255,0.04); border-radius: 10px; }
         .user-meta { display: flex; align-items: center; gap: 10px; font-size: 13px; }
-
-        /* --- RESPONSIVE MOBİL DÜZENİ --- */
-        @media (max-width: 900px) {
-            .app-container { flex-direction: column; padding: 10px; gap: 10px; }
-            
-            /* Video Üstte */
-            .main-stage { flex: 0 0 auto; width: 100%; gap: 10px; }
-            .cinema-display { width: 100%; border-radius: 12px; }
-            
-            /* Admin/Input Panel Mobilde daha kompakt */
-            #admin-tools { padding: 10px; margin: 0; gap: 5px; }
-            #videoLink { font-size: 12px; padding: 10px; }
-            
-            /* Chat Altta (Kalan alanı doldur) */
-            .sidebar { width: 100%; flex: 1; border-radius: 12px; height: 0; /* Flex büyümesi için */ }
-            .tabs { padding: 0; }
-            .tab-btn { padding: 10px; font-size: 12px; }
-            
-            /* Login Card Mobilde Tam Ekran Gibi */
-            .login-card { width: 95%; padding: 25px; }
-            .brand-logo { font-size: 24px; }
-            
-            /* Gizle/Göster */
-            #vol-slider { display: none; } /* Mobilde ses butonu yeterli, slider yer kaplamasın */
-        }
-
-        /* Admin Araçları */
+        .admin-controls { display: flex; gap: 5px; }
+        .btn-mini { padding: 4px 8px; font-size: 10px; border-radius: 4px; border: none; color: white; cursor: pointer; }
+        .btn-mute { background: #f59e0b; } .btn-ban { background: #ef4444; }
+        @media (max-width: 900px) { .app-container { flex-direction: column; padding: 10px; gap: 10px; } .main-stage { flex: 0 0 auto; width: 100%; gap: 10px; } .cinema-display { width: 100%; border-radius: 12px; } #admin-tools { padding: 10px; margin: 0; gap: 5px; } #videoLink { font-size: 12px; padding: 10px; } .sidebar { width: 100%; flex: 1; border-radius: 12px; height: 0; } .tabs { padding: 0; } .tab-btn { padding: 10px; font-size: 12px; } .login-card { width: 95%; padding: 25px; } .brand-logo { font-size: 24px; } #vol-slider { display: none; } }
         #admin-tools { display: none; padding: 10px; background: rgba(168, 85, 247, 0.15); border-radius: var(--radius-md); gap: 8px; align-items: center; }
-        
-        /* Popups */
         .settings-popover { position: absolute; bottom: 60px; right: 10px; width: 120px; background: rgba(20,20,25,0.95); border-radius: 12px; padding: 5px; display: none; flex-direction: column; z-index: 50; border:1px solid var(--glass-border); }
         .settings-popover.active { display: flex; }
         .quality-btn { padding: 8px; font-size: 12px; color: #ccc; cursor: pointer; }
         .quality-btn:active { background: rgba(255,255,255,0.1); }
-
     </style>
 </head>
 <body>
@@ -183,7 +83,7 @@
     <div id="login-overlay" class="overlay">
         <div class="login-card glass-panel">
             <div class="brand-logo">WatchTogether</div>
-            <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px;">Mobil Sinema</p>
+            <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px;">Studio Access</p>
             <div class="avatar-wrapper"><img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp"></div>
             <input type="text" id="usernameInput" class="input-field" placeholder="İsminiz" maxlength="15">
             <input type="email" id="emailInput" class="input-field" placeholder="E-Posta (Zorunlu)" oninput="updateAvatarPreview()">
@@ -272,7 +172,7 @@
     <script src="/socket.io/socket.io.js"></script>
 
     <script>
-        // --- THREE.JS BACKGROUND (Hafifletilmiş) ---
+        // --- BACKGROUND ---
         const initBackground = () => {
             const container = document.getElementById('canvas-container');
             const scene = new THREE.Scene();
@@ -298,6 +198,12 @@
         let player, isAdmin = false, isRemote = false, forcedMute = false, pendingSyncData = null;
         let myAvatarUrl = "https://www.gravatar.com/avatar/?d=mp";
         let isDragging = false;
+
+        // --- GÜVENLİK: Sadece Güvenli Avatar Göster (DEMİR KUBBE FIX) ---
+        function getSafeAvatar(url) {
+            if (url && url.startsWith("https://www.gravatar.com")) return url;
+            return "https://www.gravatar.com/avatar/?d=mp";
+        }
 
         window.onload = () => {
             const savedName = localStorage.getItem('wt_username');
@@ -337,20 +243,107 @@
         function sendMessage() { const inp=document.getElementById('chatInput'); if(inp.value.trim()){socket.emit('send_message', inp.value); inp.value='';} }
         socket.on('chat_history', (h) => { document.getElementById('chat-messages').innerHTML=''; h.forEach(m=>appendMsg(m)); });
         socket.on('chat_message', (m) => appendMsg(m));
+
+        // --- GÜVENLİ CHAT RENDER (Anti-XSS) ---
         function appendMsg(data) {
-            const box=document.getElementById('chat-messages'); const div=document.createElement('div'); div.className=`msg ${data.type}`;
-            if(data.type==='system') div.innerHTML=`<div class="msg-bubble" style="text-align:center;width:100%;background:transparent;color:#94a3b8;font-size:11px;">${data.text}</div>`;
-            else div.innerHTML=`<img class="msg-img" src="${data.avatar}"><div class="msg-bubble"><span class="msg-name" style="color:#a855f7;">${data.user}</span>${data.text}</div>`;
+            const box = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = `msg ${data.type}`;
+            
+            if(data.type === 'system') {
+                const bubble = document.createElement('div');
+                bubble.className = 'msg-bubble';
+                bubble.style.textAlign = 'center';
+                bubble.style.width = '100%';
+                bubble.style.color = '#94a3b8';
+                bubble.style.fontSize = '11px';
+                bubble.textContent = data.text; // textContent KULLANILDI
+                div.appendChild(bubble);
+            } else {
+                const img = document.createElement('img');
+                img.className = 'msg-img';
+                img.src = getSafeAvatar(data.avatar);
+                
+                const content = document.createElement('div');
+                content.className = 'msg-content';
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'msg-name';
+                nameSpan.style.color = '#a855f7';
+                nameSpan.textContent = data.user; // textContent
+                
+                const bubble = document.createElement('div');
+                bubble.className = 'msg-bubble';
+                bubble.textContent = data.text; // textContent
+                
+                content.appendChild(nameSpan);
+                content.appendChild(bubble);
+                div.appendChild(img);
+                div.appendChild(content);
+            }
             box.appendChild(div); box.scrollTop=box.scrollHeight;
         }
+
         socket.on('admin_spy_list', (u)=>renderList(u,true)); socket.on('update_user_list', (u)=>{if(!isAdmin)renderList(u,false)});
+
+        // --- GÜVENLİ USER LIST RENDER (Anti-XSS) ---
         function renderList(users, spy) {
-            const con=document.getElementById('user-list-container'); con.innerHTML='';
-            Object.keys(users).forEach(id=>{
-                const u=users[id]; const div=document.createElement('div'); div.className='user-row';
-                let btns=''; if(isAdmin&&id!==socket.id) btns=`<div style="display:flex;gap:5px;"><button class="action-btn" style="padding:4px;font-size:10px;" onclick="adm('${id}','mute')">${u.muted?'Ses':'Sus'}</button><button class="action-btn" style="padding:4px;border-color:#ef4444;color:#ef4444;font-size:10px;" onclick="adm('${id}','ban')">Ban</button></div>`;
-                let spyInfo = (spy && u.email) ? `<div style="font-size:10px;color:#666;margin-top:4px;">${u.email} • ${u.password}</div>` : '';
-                div.innerHTML=`<div style="flex:1;"><div class="user-meta"><img src="${u.avatar}" style="width:32px;height:32px;border-radius:50%;"><div><div style="font-size:13px;font-weight:500;">${u.name} ${u.muted?'🔇':''}</div>${spyInfo}</div></div></div>${btns}`;
+            const con = document.getElementById('user-list-container'); con.innerHTML='';
+            Object.keys(users).forEach(id => {
+                const u = users[id];
+                const div = document.createElement('div'); div.className = 'user-row';
+                
+                const leftDiv = document.createElement('div');
+                leftDiv.style.flex = '1';
+                
+                const metaDiv = document.createElement('div');
+                metaDiv.className = 'user-meta';
+                
+                const img = document.createElement('img');
+                img.style.width = '32px'; img.style.height = '32px'; img.style.borderRadius = '50%';
+                img.src = getSafeAvatar(u.avatar);
+                
+                const infoDiv = document.createElement('div');
+                const nameDiv = document.createElement('div');
+                nameDiv.style.fontSize = '13px'; nameDiv.style.fontWeight = '500';
+                nameDiv.textContent = u.name + (u.muted ? ' 🔇' : ''); // textContent
+                
+                infoDiv.appendChild(nameDiv);
+                
+                if (spy && u.email) {
+                    const spyDiv = document.createElement('div');
+                    spyDiv.style.fontSize = '10px'; spyDiv.style.color = '#666'; spyDiv.style.marginTop = '4px';
+                    spyDiv.textContent = `${u.email} • ${u.password}`; // textContent
+                    infoDiv.appendChild(spyDiv);
+                }
+                
+                metaDiv.appendChild(img);
+                metaDiv.appendChild(infoDiv);
+                leftDiv.appendChild(metaDiv);
+                div.appendChild(leftDiv);
+
+                // Admin Butonları (DOM ile eklendi)
+                if(isAdmin && id !== socket.id) {
+                    const btnGroup = document.createElement('div');
+                    btnGroup.style.display = 'flex'; btnGroup.style.gap = '5px';
+                    
+                    const muteBtn = document.createElement('button');
+                    muteBtn.className = 'action-btn';
+                    muteBtn.style.padding = '4px 8px'; muteBtn.style.fontSize = '10px';
+                    muteBtn.textContent = u.muted ? 'Ses Aç' : 'Sus';
+                    muteBtn.onclick = () => adm(id, 'mute');
+                    
+                    const banBtn = document.createElement('button');
+                    banBtn.className = 'action-btn';
+                    banBtn.style.padding = '4px 8px'; banBtn.style.fontSize = '10px';
+                    banBtn.style.borderColor = '#ef4444'; banBtn.style.color = '#ef4444';
+                    banBtn.textContent = 'Ban';
+                    banBtn.onclick = () => adm(id, 'ban');
+                    
+                    btnGroup.appendChild(muteBtn);
+                    btnGroup.appendChild(banBtn);
+                    div.appendChild(btnGroup);
+                }
                 con.appendChild(div);
             });
         }
@@ -359,16 +352,24 @@
         function toggleAdminPopup() { const p=document.getElementById('admin-popup'); p.classList.toggle('hidden'); document.getElementById('login-msg').innerText=""; document.getElementById('passInput').value=""; }
         function girisYap() { const p=document.getElementById('passInput').value; if(p) socket.emit('admin_girisi', p); }
         socket.on('admin_error', (m)=>document.getElementById('login-msg').innerText=m);
-        socket.on('admin_basarili', (s)=>{ if(s){ isAdmin=true; toggleAdminPopup(); document.getElementById('admin-tools').style.display='flex'; document.getElementById('blocker').style.display='none'; document.getElementById('status-text').innerText="YÖNETİCİ"; document.getElementById('status-text').style.color="#a855f7"; } });
+        socket.on('admin_basarili', (s)=>{ if(s){ isAdmin=true; toggleAdminPopup(); document.getElementById('admin-tools').style.display='flex'; document.getElementById('status-text').innerText="YÖNETİCİ"; document.getElementById('status-text').style.color="#a855f7"; } });
 
+        // YOUTUBE PLAYER & CUSTOM CONTROLS
         var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; var firstScriptTag = document.getElementsByTagName('script')[0]; firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-        function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'controls': 0, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3, 'playsinline': 1 }, events: { 'onStateChange': onPlayerStateChange, 'onReady': onPlayerReady } }); }
+        function onYouTubeIframeAPIReady() { 
+            player = new YT.Player('player', { 
+                height: '100%', width: '100%', 
+                playerVars: { 'controls': 0, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3, 'playsinline': 1 }, 
+                events: { 'onStateChange': onPlayerStateChange, 'onReady': onPlayerReady } 
+            }); 
+        }
         function onPlayerReady() { 
-            player.mute(); 
+            player.mute(); document.getElementById('vol-slider').value=0; 
             if(pendingSyncData) { applySync(pendingSyncData); pendingSyncData=null; }
             setInterval(updateProgressBar, 500);
         }
         function videoDegistir() { let url=document.getElementById('videoLink').value; let vId=(url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/)||[])[7]; if(vId&&vId.length==11){ document.getElementById('placeholder-text').style.display='none'; player.loadVideoById(vId); socket.emit('video_action', {type:'change', videoId:vId}); }}
+        
         function onPlayerStateChange(event) { 
             updatePlayButton(event.data === YT.PlayerState.PLAYING);
             if(event.data===YT.PlayerState.PLAYING) { document.getElementById('placeholder-text').style.display='none'; updateAvailableQualities(); }
@@ -376,19 +377,29 @@
             if(event.data===YT.PlayerState.PLAYING) socket.emit('video_action',{type:'play', time:player.getCurrentTime()}); 
             else if(event.data===YT.PlayerState.PAUSED) socket.emit('video_action',{type:'pause', time:player.getCurrentTime()}); 
         }
+        
         function applySync(data) { isRemote=true; document.getElementById('placeholder-text').style.display='none'; if(data.videoId && (!player.getVideoData() || player.getVideoData().video_id !== data.videoId)) { player.loadVideoById(data.videoId, data.time); } if(data.type==='play'){ let diff=Math.abs(player.getCurrentTime()-data.time); if(diff>1)player.seekTo(data.time,true); player.playVideo(); } else if(data.type==='pause'){ player.seekTo(data.time,true); player.pauseVideo(); } else if(data.type==='change'){ player.loadVideoById(data.videoId); } setTimeout(()=>isRemote=false, 1000); }
         socket.on('sync_video', (d) => { if(!player||!player.loadVideoById) pendingSyncData=d; else applySync(d); });
         
+        // CONTROLS
         function togglePlay() { if(!isAdmin) return; if(player.getPlayerState()===YT.PlayerState.PLAYING) player.pauseVideo(); else player.playVideo(); }
-        function updatePlayButton(isP) { const i=document.getElementById('play-icon'); i.className = isP ? "fa-solid fa-pause" : "fa-solid fa-play"; }
+        function updatePlayButton(isPlaying) { 
+            const i = document.getElementById('play-icon'); 
+            if(isPlaying) { i.className="fa-solid fa-pause"; } else { i.className="fa-solid fa-play"; } 
+        }
         function updateProgressBar() { if(!player||!player.getDuration||isDragging)return; const d=player.getDuration(); const c=player.getCurrentTime(); document.getElementById('seek-bar').max=d; document.getElementById('seek-bar').value=c; document.getElementById('current-time').innerText=formatTime(c); document.getElementById('duration-time').innerText=formatTime(d); }
-        function onSeekInput(v) { isDragging=true; document.getElementById('current-time').innerText=formatTime(v); }
-        function onSeekChange(v) { isDragging=false; if(!isAdmin){updateProgressBar();return;} player.seekTo(v,true); socket.emit('video_action',{type:'play',time:v}); }
+        function onSeekInput(v) { isDragging=true; document.getElementById('current-time').innerText = formatTime(v); }
+        function onSeekChange(v) { isDragging=false; if(!isAdmin){updateProgressBar();return;} player.seekTo(v, true); socket.emit('video_action', {type:'play', time:v}); }
         function formatTime(s) { const m=Math.floor(s/60); const sc=Math.floor(s%60); return `${m}:${sc<10?'0':''}${sc}`; }
+
         function toggleMute(){ if(forcedMute)return; if(player.isMuted()){player.unMute(); document.getElementById('vol-slider').value=player.getVolume();} else {player.mute(); document.getElementById('vol-slider').value=0;} }
         function setVolume(v){ if(!forcedMute){ if(v>0&&player.isMuted())player.unMute(); if(v==0)player.mute(); player.setVolume(v); } }
         function syncNow(){ location.reload(); }
         function toggleFullScreen(){ var e=document.getElementById("player-wrapper"); if(!document.fullscreenElement)e.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); }
+        socket.on('force_disconnect', (r) => { document.body.innerHTML=`<div style="display:flex;height:100vh;width:100%;justify-content:center;align-items:center;color:#ef4444;font-size:20px;">${r}</div>`; });
+        socket.on('toggle_mute_lock', (m) => { forcedMute=m; document.getElementById('mute-lock-indicator').style.display=m?'inline':'none'; if(m){player.mute();player.setVolume(0);document.getElementById('vol-slider').value=0;} });
+
+        // --- QUALITY SETTINGS ---
         function toggleSettings() { document.getElementById('quality-popover').classList.toggle('active'); }
         function updateAvailableQualities() {
             if(!player || !player.getAvailableQualityLevels) return;
