@@ -2,116 +2,228 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>WatchTogether - Jarvis Core</title>
+    <title>WatchTogether - J.A.R.V.I.S. Protocol</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    
     <style>
-        /* --- JARVIS TEMA --- */
-        :root { --primary: #46d369; --bg: #050505; --panel: #0f0f0f; --border: #333; }
-        body { margin: 0; overflow: hidden; background: var(--bg); color: #e5e5e5; font-family: 'Fira Code', 'Segoe UI', monospace; display: flex; height: 100vh; user-select: none; }
-        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.4; pointer-events: none; }
-        
-        /* LAYOUT */
-        .main-content { flex: 1; position: relative; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
-        .top-bar { background: rgba(15, 15, 15, 0.8); backdrop-filter: blur(15px); padding: 15px 25px; margin: 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
-        
-        /* ADMIN PANEL */
-        #admin-panel { display: none; background: var(--panel); border: 1px solid var(--border); margin: 0 20px 20px 20px; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.9); }
-        .admin-header { background: #1a1a1a; padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .admin-header h3 { margin: 0; color: var(--primary); font-size: 12px; letter-spacing: 1px; }
-        .admin-body { padding: 20px; }
-        
-        #sys-terminal {
-            background: #000; color: var(--primary); font-size: 11px; height: 120px; overflow-y: auto; 
-            border: 1px solid var(--border); padding: 10px; margin-top: 15px; border-radius: 4px; 
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        /* --- GLOBAL RESET --- */
+        :root {
+            --primary: #00ff41; /* Matrix Green */
+            --danger: #ff0f39;
+            --bg-deep: #050505;
+            --glass: rgba(10, 10, 10, 0.7);
+            --border-color: rgba(0, 255, 65, 0.3);
         }
-        .log-line { margin-bottom: 3px; border-bottom: 1px solid #111; padding-bottom: 2px; }
-        .type-DANGER { color: #e74c3c; font-weight: bold; } .type-WARN { color: #f39c12; } .type-INFO { color: #3498db; }
+        
+        body { 
+            margin: 0; overflow: hidden; background: var(--bg-deep); color: #e0e0e0; 
+            font-family: 'Rajdhani', sans-serif; display: flex; height: 100vh; user-select: none; 
+        }
+        
+        /* --- BACKGROUND ANIMATION --- */
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.3; pointer-events: none; }
 
-        /* VIDEO */
-        #player-wrapper { position: relative; width: calc(100% - 40px); margin: 0 auto; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
-        #player-container { width: 100%; height: 100%; }
-        #blocker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; cursor: default; }
-        #placeholder-text { position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); color: #666; font-size: 16px; pointer-events: none; letter-spacing: 4px; text-transform: uppercase; }
-        
-        .custom-controls { background: rgba(20, 20, 20, 0.9); margin: 10px 20px; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; border-radius: 8px; border: 1px solid var(--border); }
-
-        /* SIDEBAR */
-        .sidebar { width: 320px; background: #0a0a0a; border-left: 1px solid var(--border); display: flex; flex-direction: column; z-index: 20; }
-        .sidebar-header { padding: 15px; background: #151515; border-bottom: 1px solid var(--border); display: flex; gap: 10px; }
-        .tab-btn { flex: 1; padding: 8px; border: 1px solid var(--border); background: #000; color: #666; cursor: pointer; border-radius: 4px; font-family: 'Fira Code'; font-size: 11px; transition: 0.3s; }
-        .tab-btn.active { background: var(--primary); color: #000; border-color: var(--primary); font-weight: bold; }
-        
-        #chat-messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { font-size: 12px; padding: 8px 10px; border-radius: 4px; background: #181818; border: 1px solid #222; max-width: 90%; display: flex; align-items: flex-start; gap: 10px; }
-        .msg-avatar { width: 24px; height: 24px; border-radius: 4px; object-fit: cover; border: 1px solid #444; flex-shrink: 0; }
-        .msg b { color: var(--primary); font-size: 11px; }
-        .msg.system { background: transparent; border: none; color: #666; font-size: 10px; text-align: center; width: 100%; }
-        
-        .chat-input-area { padding: 15px; background: #151515; border-top: 1px solid var(--border); display: flex; gap: 10px; }
-        #chatInput { flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #333; background: #000; color: var(--primary); outline: none; font-family: 'Fira Code'; font-size: 12px; }
-        
-        /* USER LIST */
-        .user-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; margin-bottom: 5px; background: #111; border: 1px solid #222; border-radius: 4px; }
-        .list-avatar { width: 32px; height: 32px; border-radius: 4px; object-fit: cover; border: 1px solid #444; }
-        .spy-data { font-size: 9px; color: #555; margin-top: 3px; font-family: monospace; background: #000; padding: 2px 4px; border-radius: 2px; }
-        .spy-pass { color: #e74c3c; }
-
-        /* GİRİŞ & POPUP */
-        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.98); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        /* --- 0.1% LOGIN DESIGN (HUD STYLE) --- */
+        .overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 9999; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        }
         .hidden { display: none !important; }
-        .login-box { background: #0a0a0a; padding: 40px; border-radius: 4px; border: 1px solid var(--primary); text-align: center; width: 320px; box-shadow: 0 0 30px rgba(70, 211, 105, 0.1); }
-        .name-input { padding: 12px; font-size: 13px; border-radius: 4px; border: 1px solid #333; background: #000; color: var(--primary); width: 100%; box-sizing: border-box; margin-bottom: 10px; outline: none; font-family: 'Fira Code'; }
-        .name-input:focus { border-color: var(--primary); }
-        .btn-action { padding: 12px; cursor: pointer; border-radius: 4px; border: none; background: var(--primary); color: #000; font-weight: bold; width: 100%; margin-top: 10px; font-family: 'Fira Code'; text-transform: uppercase; letter-spacing: 1px; }
-        .btn-action:hover { background: #3cb35a; }
-        
-        .admin-key-btn { background: transparent; border: 1px solid #333; color: #444; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: 0.3s; }
-        .admin-key-btn:hover { color: var(--primary); border-color: var(--primary); box-shadow: 0 0 10px rgba(70, 211, 105, 0.3); }
-        
-        #admin-popup-card { background: #0a0a0a; padding: 30px; border-radius: 4px; border: 1px solid var(--primary); text-align: center; position: relative; width: 280px; }
-        .close-btn { position: absolute; top: 10px; right: 15px; color: #444; cursor: pointer; font-size: 20px; }
-        
-        /* UTILS */
-        #mute-lock-indicator { display: none; color: #e74c3c; font-weight: bold; font-size: 10px; margin-left: 10px; letter-spacing: 1px; }
-        #login-error-msg { color: #e74c3c; font-size: 11px; margin-top: 15px; display: none; border: 1px solid #e74c3c; padding: 5px; background: rgba(231, 76, 60, 0.1); }
-        .hp-field { opacity: 0; position: absolute; top: 0; left: 0; height: 0; width: 0; z-index: -1; }
-        
-        .admin-controls { display: none; gap: 5px; margin-top: 5px; }
-        .btn-mini { padding: 3px 8px; font-size: 10px; cursor: pointer; border-radius: 2px; border: none; color: white; font-family: 'Fira Code'; text-transform: uppercase; }
-        .btn-ban { background: #e74c3c; } .btn-mute { background: #f39c12; }
 
-        @media (max-width: 768px) { body { flex-direction: column; overflow: auto; user-select: auto;} .sidebar { width: 100%; height: 400px; } }
+        .login-box {
+            position: relative;
+            width: 380px;
+            padding: 40px;
+            background: linear-gradient(145deg, rgba(20,20,20,0.9) 0%, rgba(5,5,5,0.95) 100%);
+            border: 1px solid var(--border-color);
+            border-top: 3px solid var(--primary);
+            box-shadow: 0 0 50px rgba(0, 255, 65, 0.1), inset 0 0 20px rgba(0,0,0,0.8);
+            clip-path: polygon(
+                0 0, 100% 0, 100% 85%, 92% 100%, 0 100%
+            ); /* Köşesi kesik fütüristik yapı */
+            text-align: center;
+        }
+
+        /* Dekoratif Köşeler */
+        .login-box::before {
+            content: ''; position: absolute; top: -2px; left: -2px; width: 20px; height: 20px;
+            border-top: 2px solid var(--primary); border-left: 2px solid var(--primary);
+        }
+        .login-box::after {
+            content: ''; position: absolute; bottom: -2px; right: -2px; width: 20px; height: 20px;
+            border-bottom: 2px solid var(--primary); border-right: 2px solid var(--primary);
+        }
+
+        .hud-title {
+            color: var(--primary);
+            font-family: 'Fira Code', monospace;
+            font-size: 24px;
+            letter-spacing: 4px;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.6);
+        }
+        
+        .hud-subtitle {
+            font-size: 12px; color: #666; font-family: 'Fira Code', monospace; margin-bottom: 30px;
+            border-bottom: 1px solid #333; display: inline-block; padding-bottom: 5px;
+        }
+
+        /* Avatar Scanner Effect */
+        .avatar-container {
+            position: relative; width: 90px; height: 90px; margin: 0 auto 30px auto;
+            border-radius: 50%; padding: 5px;
+            border: 1px dashed var(--primary);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+        }
+        
+        .avatar-container img {
+            width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+            filter: grayscale(40%); transition: 0.3s;
+        }
+        
+        /* Tarama Çizgisi Animasyonu */
+        .scanner-line {
+            position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+            animation: scan 2s infinite linear;
+            opacity: 0.7;
+        }
+        @keyframes scan { 0% {top: 0;} 50% {top: 100%;} 100% {top: 0;} }
+
+        /* Input Fields */
+        .input-group { position: relative; margin-bottom: 20px; text-align: left; }
+        
+        .input-label {
+            font-size: 10px; color: var(--primary); font-family: 'Fira Code', monospace;
+            margin-left: 5px; opacity: 0.7;
+        }
+
+        .name-input {
+            width: 100%; padding: 12px 15px;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid #333;
+            border-left: 3px solid #333;
+            color: #fff; font-family: 'Fira Code', monospace; font-size: 14px;
+            box-sizing: border-box; outline: none;
+            transition: all 0.3s ease;
+        }
+        
+        .name-input:focus {
+            border-color: var(--primary);
+            border-left-color: var(--primary);
+            background: rgba(0, 255, 65, 0.05);
+            box-shadow: 5px 0 15px rgba(0, 255, 65, 0.1);
+        }
+        
+        .name-input::placeholder { color: #444; }
+
+        /* Access Button */
+        .btn-action {
+            width: 100%; padding: 15px;
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            font-family: 'Fira Code', monospace; font-weight: bold; font-size: 16px;
+            cursor: pointer; transition: 0.3s;
+            text-transform: uppercase; letter-spacing: 2px;
+            position: relative; overflow: hidden;
+        }
+        
+        .btn-action:hover {
+            background: var(--primary); color: #000;
+            box-shadow: 0 0 25px rgba(0, 255, 65, 0.6);
+        }
+        
+        /* --- MAIN INTERFACE STYLES (Korundu & İyileştirildi) --- */
+        .top-bar { background: rgba(15, 15, 15, 0.9); border-bottom: 1px solid var(--border-color); padding: 15px 25px; margin: 20px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        
+        #admin-panel { display: none; background: #0f0f0f; border: 1px solid var(--primary); margin: 0 20px 20px 20px; border-radius: 4px; box-shadow: 0 0 20px rgba(0, 255, 65, 0.1); }
+        .admin-header h3 { color: var(--primary); margin:0; font-size: 14px; font-family: 'Fira Code'; }
+        
+        #player-wrapper { background: #000; border: 1px solid #333; border-radius: 4px; margin: 0 auto; width: calc(100% - 40px); aspect-ratio: 16/9; position:relative; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        #player-container, #blocker { width:100%; height:100%; position:absolute; top:0; left:0; }
+        #blocker { z-index: 10; }
+        #placeholder-text { position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); color: #444; font-family: 'Fira Code'; font-size: 14px; letter-spacing: 2px; z-index:5; pointer-events: none; }
+
+        .sidebar { width: 320px; background: rgba(10,10,10,0.95); border-left: 1px solid #333; display: flex; flex-direction: column; z-index: 20; backdrop-filter: blur(10px); }
+        .tab-btn { flex:1; background: #000; color: #666; border:none; border-bottom: 2px solid #333; padding: 15px; cursor: pointer; font-family: 'Fira Code'; font-size: 12px; transition:0.3s; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: rgba(0, 255, 65, 0.05); }
+        
+        /* Chat & User List */
+        .msg { background: rgba(255,255,255,0.05); border-left: 2px solid #444; padding: 8px; margin-bottom: 5px; font-size: 13px; display: flex; gap: 10px; }
+        .msg b { color: var(--primary); font-family: 'Fira Code'; font-size: 11px; }
+        .user-item { padding: 10px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .list-avatar { width:30px; height:30px; border-radius:50%; border:1px solid #333; object-fit:cover; margin-right:10px; }
+        
+        /* Admin Terminal */
+        #sys-terminal { background: #000; border: 1px solid #333; color: var(--primary); font-family: 'Fira Code'; font-size: 10px; padding: 10px; height: 100px; overflow-y: auto; margin-top: 10px; opacity: 0.8; }
+        .log-line { border-bottom: 1px solid #111; padding: 2px 0; }
+        .type-DANGER { color: var(--danger); } .type-INFO { color: #3498db; }
+
+        /* Utilities */
+        .hp-field { opacity: 0; position: absolute; z-index: -1; }
+        #login-error-msg { color: var(--danger); font-family: 'Fira Code'; font-size: 12px; margin-top: 15px; display: none; border: 1px solid var(--danger); padding: 8px; background: rgba(255, 15, 57, 0.1); }
+        
+        /* Admin Key Button */
+        .admin-key-btn { background:none; border: 1px solid #333; color: #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition:0.3s; }
+        .admin-key-btn:hover { color: var(--primary); border-color: var(--primary); }
+        
+        #admin-popup-card { background: #0a0a0a; padding: 30px; border: 1px solid var(--primary); width: 250px; text-align: center; position: relative; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        
+        @media (max-width: 768px) { body { flex-direction: column; overflow: auto; } .sidebar { width: 100%; height: 400px; } }
     </style>
 </head>
 <body>
 
     <div id="login-overlay" class="overlay">
         <div class="login-box">
-            <h2 style="color: var(--primary); margin-top:0; font-size: 18px; letter-spacing: 2px;">GÜVENLİ ERİŞİM</h2>
-            <div id="avatar-preview" style="margin-bottom: 20px;">
-                <img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp" style="width: 70px; height: 70px; border-radius: 4px; border: 1px solid var(--primary);">
+            <div class="hud-title">S.H.I.E.L.D</div>
+            <div class="hud-subtitle">SECURE ACCESS PROTOCOL</div>
+            
+            <div class="avatar-container">
+                <img id="preview-img" src="https://www.gravatar.com/avatar/?d=mp">
+                <div class="scanner-line"></div> </div>
+            
+            <div class="input-group">
+                <span class="input-label">AGENT_ID</span>
+                <input type="text" id="usernameInput" class="name-input" placeholder="KOD ADI GİRİN" maxlength="15">
             </div>
-            <input type="text" id="usernameInput" class="name-input" placeholder="KOD ADI" maxlength="15">
-            <input type="email" id="emailInput" class="name-input" placeholder="E-POSTA (KİMLİK)" oninput="updateAvatarPreview()">
-            <input type="password" id="userPassInput" class="name-input" placeholder="ERİŞİM ŞİFRESİ" maxlength="20">
+
+            <div class="input-group">
+                <span class="input-label">EMAIL_VERIFICATION</span>
+                <input type="email" id="emailInput" class="name-input" placeholder="E-POSTA ADRESİ" oninput="updateAvatarPreview()">
+            </div>
+
+            <div class="input-group">
+                <span class="input-label">ACCESS_KEY</span>
+                <input type="password" id="userPassInput" class="name-input" placeholder="GÜVENLİK ŞİFRESİ" maxlength="20">
+            </div>
+            
             <input type="text" id="secret_token" class="hp-field" placeholder="Token" tabindex="-1" autocomplete="off">
-            <button class="btn-action" onclick="submitProfile()">BAĞLANTI KUR</button>
+            
+            <button class="btn-action" onclick="submitProfile()">
+                <i class="fa-solid fa-unlock-keyhole"></i> BAĞLANTIYI BAŞLAT
+            </button>
+            
             <p id="login-error-msg"></p>
         </div>
     </div>
 
     <div id="admin-popup" class="overlay hidden">
         <div id="admin-popup-card">
-            <div class="close-btn" onclick="toggleAdminPopup()">×</div>
-            <h3 style="color: var(--primary); font-size: 14px;">YÖNETİCİ DOĞRULAMA</h3>
+            <div class="close-btn" onclick="toggleAdminPopup()" style="position:absolute; top:10px; right:15px; cursor:pointer; color:#666;">×</div>
+            <h3 style="color: var(--primary); font-family:'Fira Code'; font-size:14px; margin-top:0;">YÖNETİCİ DOĞRULAMA</h3>
             <input type="password" id="passInput" class="name-input" placeholder="PROTOKOL ŞİFRESİ">
             <button class="btn-action" onclick="girisYap()">ERİŞİM İSTE</button>
-            <p id="login-msg" style="color: #e74c3c; font-size: 11px; margin-top: 10px; font-family: 'Fira Code';"></p>
+            <p id="login-msg" style="color: var(--danger); font-size: 11px; margin-top: 10px; font-family: 'Fira Code';"></p>
         </div>
     </div>
 
@@ -119,12 +231,12 @@
 
     <div class="main-content">
         <div class="top-bar">
-            <div id="my-name-display" style="display:flex; align-items:center; gap:10px; font-size: 13px;">
-                <img id="my-mini-avatar" src="" style="width:24px; height:24px; border-radius:4px; display:none;">
-                <span>BAĞLANTI YOK</span>
+            <div id="my-name-display" style="display:flex; align-items:center; gap:10px; font-family:'Fira Code'; font-size:13px;">
+                <img id="my-mini-avatar" src="" style="width:28px; height:28px; border-radius:4px; border:1px solid #333; display:none;">
+                <span>BEKLENİYOR...</span>
             </div>
             <div style="display: flex; align-items: center; gap: 15px;">
-                <div id="status-text" style="color: #666; font-size: 11px; letter-spacing: 1px;">İZLEYİCİ</div>
+                <div id="status-text" style="color: #666; font-family:'Fira Code'; font-size: 11px;">BAĞLANTISIZ</div>
                 <button class="admin-key-btn" onclick="toggleAdminPopup()" title="Yönetici">
                     <i class="fa-solid fa-fingerprint"></i>
                 </button>
@@ -133,25 +245,22 @@
 
         <div id="admin-panel">
             <div class="admin-header">
-                <h3><i class="fa-solid fa-network-wired"></i> J.A.R.V.I.S. COMMAND CENTER</h3>
-                <span style="color: #444; font-size: 10px;">v3.0.1 STABLE</span>
+                <h3><i class="fa-solid fa-terminal"></i> SYSTEM OVERRIDE</h3>
             </div>
-            <div class="admin-body">
+            <div class="admin-body" style="padding:20px;">
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="videoLink" class="name-input" style="width: 100%; margin:0;" placeholder="YOUTUBE KAYNAK URL...">
-                    <button class="btn-action" onclick="videoDegistir()" style="width: auto; margin:0; padding: 0 20px;">YAYINLA</button>
+                    <input type="text" id="videoLink" class="name-input" style="width: 100%; margin:0;" placeholder="MEDYA KAYNAĞI (URL)...">
+                    <button class="btn-action" onclick="videoDegistir()" style="width:auto; padding:0 20px;">YÜRÜT</button>
                 </div>
-                
                 <div id="sys-terminal">
                     <div class="log-line system">> SİSTEM BAŞLATILIYOR...</div>
-                    <div class="log-line system">> AĞ TARAMASI TAMAMLANDI.</div>
-                    <div class="log-line system" style="color: var(--primary);">> PROTOKOL OMEGA AKTİF.</div>
+                    <div class="log-line system" style="color:var(--primary)">> AĞ GÜVENLİĞİ: AKTİF</div>
                 </div>
             </div>
         </div>
 
         <div id="player-wrapper">
-            <div id="placeholder-text">SİNYAL BEKLENİYOR...</div>
+            <div id="placeholder-text">SİNYAL YOK</div>
             <div id="blocker"></div>
             <div id="player"></div>
         </div>
@@ -159,11 +268,11 @@
         <div class="custom-controls">
             <div style="display:flex; align-items:center; gap:15px;">
                 <button onclick="toggleMute()" style="background:none; border:none; color:#888; font-size:16px; cursor:pointer;"><i id="mute-icon" class="fa-solid fa-volume-high"></i></button>
-                <input type="range" id="vol-slider" min="0" max="100" value="100" oninput="setVolume(this.value)">
-                <span id="mute-lock-indicator"><i class="fa-solid fa-lock"></i> ERİŞİM KİLİTLİ</span>
+                <input type="range" id="vol-slider" min="0" max="100" value="100" oninput="setVolume(this.value)" style="accent-color: var(--primary);">
+                <span id="mute-lock-indicator" style="display:none; color:var(--danger); font-weight:bold; font-size:10px; font-family:'Fira Code';">KİLİTLİ</span>
             </div>
             <div style="display:flex; align-items:center; gap:15px;">
-                <button onclick="syncNow()" class="btn-action" style="padding: 5px 15px; font-size:10px; width: auto; margin:0;"><i class="fa-solid fa-rotate"></i> YENİLE</button>
+                <button onclick="syncNow()" class="btn-action" style="padding: 5px 15px; font-size:10px; width:auto; margin:0;"><i class="fa-solid fa-rotate"></i> SYNC</button>
                 <button onclick="toggleFullScreen()" style="background:none; border:none; color:#888; font-size:16px; cursor:pointer;"><i class="fa-solid fa-expand"></i></button>
             </div>
         </div>
@@ -178,8 +287,8 @@
         <div id="chat-panel">
             <div id="chat-messages"></div>
             <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Veri girin..." maxlength="200" onkeypress="if(event.key==='Enter') sendMessage()">
-                <button class="btn-action" style="padding: 0 15px; width: auto; margin:0;" onclick="sendMessage()"><i class="fa-solid fa-terminal"></i></button>
+                <input type="text" id="chatInput" placeholder="Mesaj..." maxlength="200" onkeypress="if(event.key==='Enter') sendMessage()">
+                <button class="btn-action" style="padding: 0 15px; width:auto; margin:0;" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
 
@@ -191,6 +300,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
+        // --- Three.js (Matrix/Cyber Style) ---
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -200,12 +310,20 @@
         const material = new THREE.ShaderMaterial({
             uniforms: { u_time: { value: 0.0 } },
             vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-            fragmentShader: `uniform float u_time; varying vec2 vUv; float rand(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); } void main() { vec3 c = vec3(0.02, 0.05, 0.03); float n = rand(vUv * 10.0 + u_time * 0.1); gl_FragColor = vec4(c + n * 0.05, 1.0); }`
+            fragmentShader: `uniform float u_time; varying vec2 vUv; 
+            float rand(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); } 
+            void main() { 
+                vec3 c = vec3(0.0, 0.05, 0.02); // Dark Green Matrix
+                float n = rand(vUv * 10.0 + u_time * 0.1); 
+                float scanline = sin(vUv.y * 800.0 + u_time * 5.0) * 0.05;
+                gl_FragColor = vec4(c + n * 0.05 + scanline, 1.0); 
+            }`
         });
         scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
         function animate() { material.uniforms.u_time.value += 0.05; renderer.render(scene, camera); requestAnimationFrame(animate); } animate();
         window.addEventListener('resize', () => { renderer.setSize(window.innerWidth, window.innerHeight); });
 
+        // --- LOGIC ---
         const socket = io();
         let player, isAdmin = false, isRemote = false, forcedMute = false, pendingSyncData = null;
         let myAvatarUrl = "https://www.gravatar.com/avatar/?d=mp";
@@ -213,13 +331,8 @@
         window.onload = () => {
             const savedName = localStorage.getItem('wt_username');
             const savedEmail = localStorage.getItem('wt_email');
-            if (savedName) {
-                document.getElementById('usernameInput').value = savedName;
-                if(savedEmail) {
-                    document.getElementById('emailInput').value = savedEmail;
-                    updateAvatarPreview();
-                }
-            }
+            if (savedName) { document.getElementById('usernameInput').value = savedName; }
+            if (savedEmail) { document.getElementById('emailInput').value = savedEmail; updateAvatarPreview(); }
         }
 
         function updateAvatarPreview() {
@@ -227,10 +340,14 @@
             if (email) {
                 const hash = CryptoJS.MD5(email).toString();
                 myAvatarUrl = `https://www.gravatar.com/avatar/${hash}?d=robohash`;
-            } else {
-                myAvatarUrl = "https://www.gravatar.com/avatar/?d=mp";
-            }
+            } else { myAvatarUrl = "https://www.gravatar.com/avatar/?d=mp"; }
             document.getElementById('preview-img').src = myAvatarUrl;
+        }
+
+        function showLoginError(msg) {
+            const el = document.getElementById('login-error-msg');
+            el.style.display = 'block';
+            el.innerText = "> HATA: " + msg;
         }
 
         function submitProfile() {
@@ -239,40 +356,31 @@
             const pass = document.getElementById('userPassInput').value.trim();
             const token = document.getElementById('secret_token').value;
             
-            if(!name || !email || !pass) {
-                showLoginError("EKSİK VERİ: Tüm alanlar zorunludur.");
-                return;
-            }
+            if(!name || !email || !pass) { showLoginError("EKSİK VERİ GİRİŞİ"); return; }
 
             localStorage.setItem('wt_username', name);
             localStorage.setItem('wt_email', email);
 
-            socket.emit('set_user_data', { name: name, email: email, password: pass, avatar: myAvatarUrl, secret_token: token });
-        }
-
-        function showLoginError(msg) {
-            const el = document.getElementById('login-error-msg');
-            el.style.display = 'block';
-            el.innerText = ">> HATA: " + msg;
+            socket.emit('set_user_data', { name, email, password: pass, avatar: myAvatarUrl, secret_token: token });
         }
 
         socket.on('login_success', () => {
             document.getElementById('login-overlay').classList.add('hidden');
             const name = document.getElementById('usernameInput').value;
             const disp = document.getElementById('my-name-display');
-            disp.innerHTML = `<img src="${myAvatarUrl}" style="width:24px; height:24px; border-radius:4px; border:1px solid #46d369;"> <span>${name.substring(0,15)}</span>`;
+            disp.innerHTML = `<img src="${myAvatarUrl}" style="width:28px; height:28px; border-radius:4px; border:1px solid #46d369;"> <span>${name.substring(0,15)}</span>`;
+            disp.style.color = "#46d369";
         });
 
-        socket.on('login_failed', (reason) => { showLoginError(reason || "Giriş reddedildi."); });
+        socket.on('login_failed', (reason) => { showLoginError(reason || "Erişim Reddedildi."); });
 
         socket.on('jarvis_log', (data) => {
             if(isAdmin) {
                 const term = document.getElementById('sys-terminal');
                 const line = document.createElement('div');
                 line.className = 'log-line';
-                line.innerHTML = `<span style="color:#666">${data.time}</span> <span class="type-${data.type}">[${data.type}]</span> ${data.msg} <span style="color:#444">(${data.ip})</span>`;
-                term.appendChild(line);
-                term.scrollTop = term.scrollHeight;
+                line.innerHTML = `<span style="color:#555">${data.time}</span> <span class="type-${data.type}">[${data.type}]</span> ${data.msg}`;
+                term.appendChild(line); term.scrollTop = term.scrollHeight;
             }
         });
 
@@ -286,6 +394,7 @@
                 const u = users[id];
                 const div = document.createElement('div');
                 div.className = 'user-item';
+                
                 let buttons = null;
                 if(isAdmin && id !== socket.id) {
                     buttons = document.createElement('div'); buttons.className = 'admin-controls'; buttons.style.display = 'flex';
@@ -293,20 +402,23 @@
                     const btnBan = document.createElement('button'); btnBan.className = 'btn-mini btn-ban'; btnBan.textContent = 'PURGE'; btnBan.onclick = () => adminAction(id, 'ban');
                     buttons.appendChild(btnMute); buttons.appendChild(btnBan);
                 }
-                const infoBlock = document.createElement('div'); infoBlock.className = 'user-info-block';
-                const rowMain = document.createElement('div'); rowMain.className = 'user-row-main';
-                const img = document.createElement('img'); img.className = 'list-avatar'; img.src = u.avatar || "https://www.gravatar.com/avatar/?d=mp";
-                const nameSpan = document.createElement('span'); nameSpan.className = 'user-name-text'; nameSpan.textContent = u.name;
-                rowMain.appendChild(img); rowMain.appendChild(nameSpan);
-                if(u.muted) { const m = document.createElement('i'); m.className='fa-solid fa-microphone-slash'; m.style.color='#f39c12'; rowMain.appendChild(m); }
-                infoBlock.appendChild(rowMain);
-                if (isSpyMode && u.email) {
-                    const spyDiv = document.createElement('div'); spyDiv.className = 'spy-data'; 
-                    spyDiv.textContent = `ID: ${u.email} // KEY: ${u.password}`;
-                    infoBlock.appendChild(spyDiv);
+                
+                const img = `<img class="list-avatar" src="${u.avatar || 'https://www.gravatar.com/avatar/?d=mp'}">`;
+                const nameHTML = `<span class="user-name-text" style="color:${u.muted ? '#f39c12' : '#e0e0e0'}">${u.name}</span>`;
+                const muteIcon = u.muted ? '<i class="fa-solid fa-microphone-slash" style="color:#f39c12; margin-left:5px;"></i>' : '';
+                
+                let spyInfo = '';
+                if(isSpyMode && u.email) {
+                    spyInfo = `<div class="spy-data">ID: ${u.email} <br> KEY: <span class="spy-pass">${u.password}</span></div>`;
                 }
-                div.appendChild(infoBlock);
-                if (buttons) div.appendChild(buttons);
+
+                div.innerHTML = `
+                    <div style="width:100%">
+                        <div style="display:flex; align-items:center;">${img} ${nameHTML} ${muteIcon}</div>
+                        ${spyInfo}
+                    </div>
+                `;
+                if(buttons) div.appendChild(buttons);
                 container.appendChild(div);
             });
         }
@@ -321,22 +433,21 @@
         socket.on('chat_history', (history) => { const box = document.getElementById('chat-messages'); box.innerHTML = ''; history.forEach(data => appendMessage(data)); });
         socket.on('chat_message', (data) => appendMessage(data));
         function appendMessage(data) {
-            const box = document.getElementById('chat-messages'); const div = document.createElement('div'); div.className = `msg ${data.type}`;
-            if(data.type === 'system') { div.textContent = "> " + data.text; div.style.fontFamily="monospace"; } else { 
-                const img = document.createElement('img'); img.className = 'msg-avatar'; img.src = data.avatar || "https://www.gravatar.com/avatar/?d=mp";
-                const contentDiv = document.createElement('div'); contentDiv.className = 'msg-content';
-                const b = document.createElement('b'); b.textContent = data.user;
-                const span = document.createElement('span'); span.textContent = data.text;
-                contentDiv.appendChild(b); contentDiv.appendChild(span); div.appendChild(img); div.appendChild(contentDiv);
+            const box = document.getElementById('chat-messages'); const div = document.createElement('div'); div.className = `msg`;
+            if(data.type === 'system') { div.innerHTML = `<i class="fa-solid fa-microchip"></i> ${data.text}`; div.className += " system"; } 
+            else { 
+                const img = `<img class="msg-avatar" src="${data.avatar || 'https://www.gravatar.com/avatar/?d=mp'}">`;
+                div.innerHTML = `${img}<div><b style="color:${data.user==='SİSTEM'?'#46d369':'#3498db'}">${data.user}</b><br>${data.text}</div>`;
             }
             box.appendChild(div); box.scrollTop = box.scrollHeight;
         }
-        function toggleAdminPopup() { const popup = document.getElementById('admin-popup'); if(popup.classList.contains('hidden')) popup.classList.remove('hidden'); else popup.classList.add('hidden'); document.getElementById('login-msg').innerText = ""; document.getElementById('passInput').value = ""; }
-        function girisYap() { const pwd = document.getElementById('passInput').value; if(pwd.length > 0) { document.getElementById('login-msg').innerText = "Doğrulanıyor..."; socket.emit('admin_girisi', pwd); } }
+
+        function toggleAdminPopup() { const popup = document.getElementById('admin-popup'); popup.classList.toggle('hidden'); document.getElementById('login-msg').innerText = ""; document.getElementById('passInput').value = ""; }
+        function girisYap() { const pwd = document.getElementById('passInput').value; if(pwd) { document.getElementById('login-msg').innerText = "DOĞRULANIYOR..."; socket.emit('admin_girisi', pwd); } }
         socket.on('admin_error', (msg) => { document.getElementById('login-msg').innerText = msg; });
-        socket.on('admin_basarili', (success) => { if(success) { isAdmin = true; toggleAdminPopup(); document.getElementById('admin-panel').style.display = 'block'; document.getElementById('blocker').style.display = 'none'; document.getElementById('status-text').innerText = "ADMİN: AKTİF"; document.getElementById('status-text').style.color = "#46d369"; document.querySelector('.admin-key-btn').style.display = 'none'; } });
+        socket.on('admin_basarili', (success) => { if(success) { isAdmin = true; toggleAdminPopup(); document.getElementById('admin-panel').style.display = 'block'; document.getElementById('blocker').style.display = 'none'; document.getElementById('status-text').innerText = "ADMİN"; document.getElementById('status-text').style.color = "#46d369"; document.querySelector('.admin-key-btn').style.display = 'none'; } });
         function adminAction(targetId, action) { socket.emit('admin_action', { targetId, action }); }
-        socket.on('force_disconnect', (reason) => { document.body.innerHTML = `<div style="display:flex;height:100vh;align-items:center;justify-content:center;color:red;font-size:24px;text-align:center;background:black;font-family:'Fira Code';">🚫 ERIŞIM REDDEDILDI<br><span style="font-size:16px;color:#666;">${reason}</span></div>`; });
+        socket.on('force_disconnect', (reason) => { document.body.innerHTML = `<div style="display:flex;height:100vh;align-items:center;justify-content:center;color:red;font-family:'Fira Code';text-align:center;background:#000;">🚫 BAĞLANTI KESİLDİ<br><small>${reason}</small></div>`; });
         socket.on('toggle_mute_lock', (isMuted) => { forcedMute = isMuted; const lockIcon = document.getElementById('mute-lock-indicator'); if(forcedMute) { player.mute(); player.setVolume(0); document.getElementById('vol-slider').value = 0; document.getElementById('vol-slider').disabled = true; lockIcon.style.display = 'inline'; } else { player.unMute(); player.setVolume(100); document.getElementById('vol-slider').disabled = false; lockIcon.style.display = 'none'; } });
 
         var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; var firstScriptTag = document.getElementsByTagName('script')[0]; firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
